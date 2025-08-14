@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Work Order #{{ workorder.id }}{% endblock %}
+
+{% block content %}
+<a class="btn" href="{{ url_for('list_workorders') }}">← Back</a>
+
+<h1>#{{ workorder.id }} • {{ workorder.title }}</h1>
+
+<div class="meta">
+    <span class="badge status-{{ workorder.status|lower|replace(' ', '-') }}">{{ workorder.status }}</span>
+    <span class="badge priority-{{ workorder.priority|lower }}">{{ workorder.priority }}</span>
+    <span>Requested by: <strong>{{ workorder.requested_by or '—' }}</strong></span>
+    <span>Assigned to: <strong>{{ workorder.assigned_to or '—' }}</strong></span>
+    <span>Due: <strong>{{ workorder.due_date|datefmt or '—' }}</strong></span>
+</div>
+
+<section class="panel">
+    <h2>Description</h2>
+    <p>{{ workorder.description or 'No description provided.' }}</p>
+</section>
+
+<section class="panel">
+    <h2>Details</h2>
+    <dl class="details">
+        <dt>Location</dt><dd>{{ workorder.location or '—' }}</dd>
+        <dt>Category</dt><dd>{{ workorder.category or '—' }}</dd>
+        <dt>Contact Phone</dt><dd>{{ workorder.contact_phone or '—' }}</dd>
+        <dt>Created</dt><dd>{{ workorder.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+        <dt>Updated</dt><dd>{{ workorder.updated_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+    </dl>
+</section>
+
+<div class="form-actions">
+    <a class="btn" href="{{ url_for('edit_workorder', workorder_id=workorder.id) }}">Edit</a>
+    <form method="post" action="{{ url_for('delete_workorder', workorder_id=workorder.id) }}" onsubmit="return confirm('Delete this work order?');">
+        <button class="btn danger" type="submit">Delete</button>
+    </form>
+</div>
+{% endblock %}

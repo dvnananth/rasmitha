@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block content %}
+<h1>{{ form_title }}</h1>
+<form class="form" method="post" action="{{ form_action }}">
+    <div class="grid">
+        <label>
+            <span>Title</span>
+            <input type="text" name="title" value="{{ workorder.title if workorder else '' }}" required>
+        </label>
+        <label>
+            <span>Status</span>
+            <select name="status">
+                {% for s in STATUSES %}
+                    <option value="{{ s }}" {% if workorder and workorder.status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span>Priority</span>
+            <select name="priority">
+                {% for p in PRIORITIES %}
+                    <option value="{{ p }}" {% if workorder and workorder.priority == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span>Requested By</span>
+            <input type="text" name="requested_by" value="{{ workorder.requested_by if workorder else '' }}">
+        </label>
+        <label>
+            <span>Assigned To</span>
+            <input type="text" name="assigned_to" value="{{ workorder.assigned_to if workorder else '' }}">
+        </label>
+        <label>
+            <span>Location</span>
+            <input type="text" name="location" value="{{ workorder.location if workorder else '' }}">
+        </label>
+        <label>
+            <span>Category</span>
+            <input type="text" name="category" value="{{ workorder.category if workorder else '' }}">
+        </label>
+        <label>
+            <span>Contact Phone</span>
+            <input type="text" name="contact_phone" value="{{ workorder.contact_phone if workorder else '' }}">
+        </label>
+        <label>
+            <span>Due Date</span>
+            <input type="date" name="due_date" value="{{ workorder.due_date|datefmt if workorder and workorder.due_date else '' }}">
+        </label>
+        <label class="full">
+            <span>Description</span>
+            <textarea name="description" rows="6">{{ workorder.description if workorder else '' }}</textarea>
+        </label>
+    </div>
+    <div class="form-actions">
+        <a class="btn" href="{{ url_for('list_workorders') }}">Cancel</a>
+        <button class="btn primary" type="submit">{{ submit_label }}</button>
+    </div>
+</form>
+{% endblock %}
