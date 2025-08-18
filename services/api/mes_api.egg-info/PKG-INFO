@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: mes-api
+Version: 0.1.0
+Summary: Composable MES FastAPI service
+Requires-Python: >=3.10
+Requires-Dist: fastapi==0.115.2
+Requires-Dist: uvicorn[standard]==0.30.6
+Requires-Dist: pydantic==2.8.2
+Requires-Dist: pydantic-settings==2.5.2
+Requires-Dist: SQLAlchemy==2.0.35
+Requires-Dist: alembic==1.13.2
+Requires-Dist: aiosqlite==0.20.0
