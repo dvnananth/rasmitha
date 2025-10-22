@@ -7,6 +7,16 @@ try:
 except Exception:
     pass
 
+def _adjust_length(values, expected_len, name):
+    vals = [float(x) for x in values]
+    if expected_len and len(vals) != expected_len:
+        st.warning(f"{name} length {len(vals)} does not match expected {expected_len}. Auto-adjusting.")
+        if len(vals) < expected_len:
+            vals = vals + [0.0] * (expected_len - len(vals))
+        else:
+            vals = vals[: expected_len]
+    return vals
+
 st.title("Reactors")
 st.caption("Configure reactor type and parameters.")
 
@@ -28,13 +38,7 @@ if sel_type == "Batch (isothermal)":
     c0_text = st.text_input("Initial concentrations c0 (per species, comma-separated)", value=", ".join(map(str, params.get("c0", [1.0]))))
     tend = st.number_input("End time [s]", value=float(params.get("tend", 5.0)))
     dt = st.number_input("Time step [s]", value=float(params.get("dt", 0.05)))
-    c0_vals = [float(x) for x in c0_text.split(",") if x.strip()]
-    if num_species and len(c0_vals) != num_species:
-        st.warning(f"c0 length {len(c0_vals)} does not match species count {num_species}. Auto-adjusting by pad/truncate.")
-        if len(c0_vals) < num_species:
-            c0_vals = c0_vals + [0.0] * (num_species - len(c0_vals))
-        else:
-            c0_vals = c0_vals[: num_species]
+    c0_vals = _adjust_length([x for x in c0_text.split(",") if x.strip()], num_species, "c0")
     params_out = {"T": T, "c0": c0_vals, "tend": tend, "dt": dt}
 
 elif sel_type == "CSTR (adiabatic)":
@@ -48,23 +52,9 @@ elif sel_type == "CSTR (adiabatic)":
     tend = st.number_input("End time [s]", value=float(params.get("tend", 5.0)))
     dt = st.number_input("Time step [s]", value=float(params.get("dt", 0.05)))
     # Normalize vector lengths
-    c0_vals = [float(x) for x in c0_text.split(",") if x.strip()]
-    cin_vals = [float(x) for x in cin_text.split(",") if x.strip()]
-    if num_species:
-        for name, arr in [("c0", c0_vals), ("cin", cin_vals)]:
-            if len(arr) != num_species:
-                st.warning(f"{name} length {len(arr)} != species count {num_species}. Auto-adjusting.")
-                if len(arr) < num_species:
-                    arr += [0.0] * (num_species - len(arr))
-                else:
-                    del arr[num_species:]
-    dH_vals = [float(x) for x in dH_text.split(",") if x.strip()]
-    if num_rxn and len(dH_vals) != num_rxn:
-        st.warning(f"dH length {len(dH_vals)} != reaction count {num_rxn}. Auto-adjusting.")
-        if len(dH_vals) < num_rxn:
-            dH_vals += [0.0] * (num_rxn - len(dH_vals))
-        else:
-            del dH_vals[num_rxn:]
+    c0_vals = _adjust_length([x for x in c0_text.split(",") if x.strip()], num_species, "c0")
+    cin_vals = _adjust_length([x for x in cin_text.split(",") if x.strip()], num_species, "cin")
+    dH_vals = _adjust_length([x for x in dH_text.split(",") if x.strip()], num_rxn, "dH")
     params_out = {
         "Tin": Tin,
         "tau": tau,
@@ -82,13 +72,7 @@ else:  # PFR (isothermal)
     cin_text = st.text_input("Inlet concentrations cin (comma-separated)", value=", ".join(map(str, params.get("cin", [1.0]))))
     tau_end = st.number_input("End residence coordinate [s]", value=float(params.get("tau_end", 3.0)))
     dt = st.number_input("Step [s]", value=float(params.get("dt", 0.05)))
-    cin_vals = [float(x) for x in cin_text.split(",") if x.strip()]
-    if num_species and len(cin_vals) != num_species:
-        st.warning(f"cin length {len(cin_vals)} != species count {num_species}. Auto-adjusting.")
-        if len(cin_vals) < num_species:
-            cin_vals += [0.0] * (num_species - len(cin_vals))
-        else:
-            del cin_vals[num_species:]
+    cin_vals = _adjust_length([x for x in cin_text.split(",") if x.strip()], num_species, "cin")
     params_out = {"T": T, "cin": cin_vals, "tau_end": tau_end, "dt": dt}
 
 if st.button("Save setup", use_container_width=True):

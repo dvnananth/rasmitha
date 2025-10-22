@@ -26,14 +26,32 @@ def _infer_xcol(df: pd.DataFrame) -> str:
     for c in ["t", "z", "time", "x"]:
         if c in df.columns:
             return c
+    if "volume" in df.columns:
+        return "volume"
     return df.columns[0]
 
 
 def _infer_species(df: pd.DataFrame, kin: Optional[Dict]) -> List[str]:
     if kin and kin.get("species"):
         return [s for s in kin["species"] if s in df.columns]
-    exclude = {"t", "time", "z", "x", "T"}
+    # Support both wide and long formats
+    if {"species", "value"}.issubset(df.columns):
+        # long format; species will be handled by pivot
+        species_names = sorted([s for s in df["species"].unique() if isinstance(s, (str, int, float))])
+        return [str(s) for s in species_names]
+    exclude = {"t", "time", "z", "x", "volume", "T"}
     return [c for c in df.columns if c not in exclude]
+
+
+def _ensure_wide(df: pd.DataFrame, kin: Optional[Dict]) -> pd.DataFrame:
+    if {"species", "value"}.issubset(df.columns):
+        xcol = _infer_xcol(df)
+        try:
+            wide = df.pivot_table(index=xcol, columns="species", values="value", aggfunc="mean").reset_index()
+            return wide
+        except Exception:
+            return df
+    return df
 
 
 def _physics_predict_grid(kin: Dict, setup: Dict, x_grid: np.ndarray) -> pd.DataFrame:
@@ -99,9 +117,9 @@ setup = st.session_state.get("reactor_setup")
 
 source = st.radio("Ground truth dataset", [opt for opt in ["CFD/Uploaded", "Simulation"] if (cfd_df if opt=="CFD/Uploaded" else sim_df) is not None])
 if source == "CFD/Uploaded":
-    df_gt = cfd_df
+df_gt = cfd_df
 else:
-    df_gt = sim_df
+df_gt = sim_df
 
 if df_gt is None:
     st.warning("No dataset available. Upload in Data tab or run a simulation in Solver tab.")
@@ -110,6 +128,7 @@ if df_gt is None:
 if not kin or not setup:
     st.warning("Define kinetics and reactor setup to enable Physics/Hybrid predictions.")
 
+df_gt = _ensure_wide(df_gt, kin)
 xcol = _infer_xcol(df_gt)
 species_cols = _infer_species(df_gt, kin)
 
@@ -204,7 +223,8 @@ st.subheader("Predictions vs Ground Truth")
 sel = st.selectbox("Variable", species_cols)
 if sel in pred_frames:
     dfp = pred_frames[sel]
-    st.line_chart(dfp.set_index(xcol)[["y_true", "y_phys", "y_ml", "y_hybrid"]])
+    cols_to_plot = [c for c in ["y_true", "y_phys", "y_ml", "y_hybrid"] if c in dfp.columns]
+    st.line_chart(dfp.set_index(xcol)[cols_to_plot])
 
 # Save results in session
 st.session_state["analytics_metrics"] = metrics_df

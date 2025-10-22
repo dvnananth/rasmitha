@@ -24,11 +24,28 @@ if which == "Simulation":
 else:
     df = cfd_df
 
+def _maybe_pivot_long(df_in: pd.DataFrame) -> pd.DataFrame:
+    df = df_in.copy()
+    # Detect long format: presence of 'value' and a category column
+    cat_cols = [c for c in ["species", "variable", "name"] if c in df.columns]
+    if "value" in df.columns and cat_cols:
+        # Choose first categorical column and infer x column
+        x_candidates = [c for c in ["t", "z", "time", "x", "volume"] if c in df.columns]
+        x_col = x_candidates[0] if x_candidates else df.columns[0]
+        cat = cat_cols[0]
+        try:
+            wide = df.pivot_table(index=x_col, columns=cat, values="value", aggfunc="mean").reset_index()
+            return wide
+        except Exception:
+            return df_in
+    return df_in
+
 if df is None:
     st.info("No data to plot yet.")
 else:
+    df = _maybe_pivot_long(df)
     # Determine independent and targets
-    indep_candidates = [c for c in ["t", "z", "time", "x"] if c in df.columns]
+    indep_candidates = [c for c in ["t", "z", "time", "x", "volume"] if c in df.columns]
     xcol = indep_candidates[0] if indep_candidates else df.columns[0]
     target_cols = [c for c in df.columns if c not in {xcol, "T"}]
 
