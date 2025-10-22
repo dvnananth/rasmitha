@@ -12,7 +12,10 @@ from sklearn.model_selection import train_test_split
 
 from reactorsim.core import parse_kinetics, simulate_batch_isothermal, simulate_cstr_adiabatic, simulate_pfr_isothermal
 
-st.set_page_config(page_title="ReactorSim - Analytics", page_icon="🧪", layout="wide")
+try:
+    st.set_page_config(page_title="ReactorSim - Analytics", page_icon="🧪", layout="wide")
+except Exception:
+    pass
 
 st.title("Analytics")
 st.caption("Compare Normal Physics vs AIML vs Hybrid (Physics + AIML Residuals)")

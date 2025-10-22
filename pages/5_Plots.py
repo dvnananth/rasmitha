@@ -4,7 +4,10 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="ReactorSim - Plots", page_icon="🧪", layout="wide")
+try:
+    st.set_page_config(page_title="ReactorSim - Plots", page_icon="🧪", layout="wide")
+except Exception:
+    pass
 
 st.title("Plots")
 st.caption("Visualize time/space series for simulations and datasets.")

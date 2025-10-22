@@ -1,14 +1,21 @@
 import platform
 import importlib
+import importlib.util
+import os
+from pathlib import Path
 from datetime import datetime
 import streamlit as st
 
-st.set_page_config(
-    page_title="ReactorSim",
-    page_icon="🧪",
-    layout="wide",
-    initial_sidebar_state="expanded",  # force sidebar open
-)
+try:
+    st.set_page_config(
+        page_title="ReactorSim",
+        page_icon="🧪",
+        layout="wide",
+        initial_sidebar_state="expanded",  # force sidebar open
+    )
+except Exception:
+    # set_page_config may have been called already if rendering in-place
+    pass
 
 # --- Sidebar navigation (manual fallback) ---
 st.sidebar.header("Navigate")
@@ -21,12 +28,31 @@ _pages = {
     "Plots": "pages/5_Plots.py",
     "Analytics": "pages/6_Analytics.py",
 }
+def _render_fallback(page_name: str) -> None:
+    target = _pages.get(page_name)
+    if not target:
+        return
+    base_dir = Path(__file__).parent
+    abspath = (base_dir / target).resolve()
+    try:
+        spec = importlib.util.spec_from_file_location("_embedded_page", str(abspath))
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)  # page will render at import time
+        else:
+            st.error(f"Cannot load page module for {page_name}")
+    except Exception as e:
+        st.error(f"Failed to render {page_name}: {e}")
+
 _choice = st.sidebar.radio("Go to", list(_pages.keys()), index=0)
 if _choice != "Home":
     try:
         st.switch_page(_pages[_choice])
+        st.stop()
     except Exception:
-        st.sidebar.info("If navigation fails, use the top buttons below.")
+        st.sidebar.info("Navigation fallback active. Rendering page here.")
+        _render_fallback(_choice)
+        st.stop()
 
 st.title("🧪 ReactorSim")
 st.caption("Modeling and simulation for Batch, CSTR, and PFR with Arrhenius kinetics")
@@ -41,8 +67,17 @@ for i, (label, target) in enumerate(zip(labels, targets)):
         if st.button(label, use_container_width=True):
             try:
                 st.switch_page(target)
+                st.stop()
             except Exception:
-                st.info("Use the sidebar to navigate.")
+                st.info("Navigation fallback active. Rendering page here.")
+                # Map target path back to page name key
+                name_lookup = {v: k for k, v in _pages.items() if v is not None}
+                page_name = name_lookup.get(target)
+                if page_name:
+                    _render_fallback(page_name)
+                    st.stop()
+                else:
+                    st.error("Unknown page target.")
 
 st.divider()
 

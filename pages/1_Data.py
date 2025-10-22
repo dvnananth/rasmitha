@@ -5,7 +5,10 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="ReactorSim - Data", page_icon="🧪", layout="wide")
+try:
+    st.set_page_config(page_title="ReactorSim - Data", page_icon="🧪", layout="wide")
+except Exception:
+    pass
 
 st.title("Data")
 st.caption("Load a CFD/experimental dataset, or synthesize one from the current model.")

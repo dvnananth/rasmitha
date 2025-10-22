@@ -2,7 +2,10 @@ from typing import Dict, List
 
 import streamlit as st
 
-st.set_page_config(page_title="ReactorSim - Reactors", page_icon="🧪", layout="wide")
+try:
+    st.set_page_config(page_title="ReactorSim - Reactors", page_icon="🧪", layout="wide")
+except Exception:
+    pass
 
 st.title("Reactors")
 st.caption("Configure reactor type and parameters.")

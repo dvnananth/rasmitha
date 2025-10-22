@@ -5,7 +5,10 @@ import streamlit as st
 
 from reactorsim.core import parse_kinetics, simulate_batch_isothermal, simulate_cstr_adiabatic, simulate_pfr_isothermal
 
-st.set_page_config(page_title="ReactorSim - Solver", page_icon="🧪", layout="wide")
+try:
+    st.set_page_config(page_title="ReactorSim - Solver", page_icon="🧪", layout="wide")
+except Exception:
+    pass
 
 st.title("Solver")
 st.caption("Run physics simulations and export results.")

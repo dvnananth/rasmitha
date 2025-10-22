@@ -2,7 +2,10 @@ from typing import List
 
 import streamlit as st
 
-st.set_page_config(page_title="ReactorSim - Kinetics", page_icon="🧪", layout="wide")
+try:
+    st.set_page_config(page_title="ReactorSim - Kinetics", page_icon="🧪", layout="wide")
+except Exception:
+    pass
 
 st.title("Kinetics")
 st.caption("Define species and elementary Arrhenius reactions.")
