@@ -116,6 +116,10 @@ species_cols = _infer_species(df_gt, kin)
 st.write(f"Detected independent variable: {xcol}")
 st.write(f"Target variables: {species_cols}")
 
+if not species_cols:
+    st.warning("No target variables found. Ensure your dataset includes species columns (not just t/z and T).")
+    st.stop()
+
 # Train/test split
 split = st.slider("Train fraction", min_value=0.5, max_value=0.95, value=0.8, step=0.05)
 random_state = st.number_input("Random seed", min_value=0, step=1, value=42)

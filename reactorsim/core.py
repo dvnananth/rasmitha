@@ -110,6 +110,23 @@ def parse_kinetics(kin: Dict) -> ReactionKinetics:
     return ReactionKinetics(species=species, stoich=stoich, A=A, Ea=Ea)
 
 
+def _require_length(vec: Sequence[float], expected: int, name: str) -> np.ndarray:
+    arr = np.asarray(list(vec), dtype=float)
+    if expected == 0:
+        if arr.size == 0:
+            return arr
+        raise ValueError(
+            f"Kinetics has zero species but '{name}' provided with length {arr.size}. "
+            f"Define species in Kinetics tab."
+        )
+    if arr.size != expected:
+        raise ValueError(
+            f"Length mismatch for '{name}': got {arr.size}, expected {expected}. "
+            f"Ensure it has one value per species ({expected})."
+        )
+    return arr
+
+
 def _build_df_time_series(t: np.ndarray, c_hist: np.ndarray, T_hist: Optional[np.ndarray], species: List[str]) -> pd.DataFrame:
     df = pd.DataFrame({"t": t})
     for i, name in enumerate(species):
@@ -133,7 +150,7 @@ def _build_df_space_series(z: np.ndarray, c_hist: np.ndarray, T: Optional[float]
 def simulate_batch_isothermal(kin: ReactionKinetics, params: Dict) -> pd.DataFrame:
     """Batch reactor, isothermal: dC/dt = nu^T r(C,T)."""
     T: float = float(params.get("T", params.get("T0", 300.0)))
-    c0: np.ndarray = np.asarray(params.get("c0", [0.0] * kin.num_species), dtype=float)
+    c0: np.ndarray = _require_length(params.get("c0", [0.0] * kin.num_species), kin.num_species, "c0")
     tend: float = float(params.get("tend", 10.0))
     dt: float = float(params.get("dt", 0.05))
 
@@ -158,15 +175,12 @@ def simulate_cstr_adiabatic(kin: ReactionKinetics, params: Dict) -> pd.DataFrame
     """
     tau: float = float(params.get("tau", 1.0))
     Tin: float = float(params.get("Tin", params.get("T0", 300.0)))
-    c0: np.ndarray = np.asarray(params.get("c0", [0.0] * kin.num_species), dtype=float)
-    cin: np.ndarray = np.asarray(params.get("cin", [0.0] * kin.num_species), dtype=float)
+    c0: np.ndarray = _require_length(params.get("c0", [0.0] * kin.num_species), kin.num_species, "c0")
+    cin: np.ndarray = _require_length(params.get("cin", [0.0] * kin.num_species), kin.num_species, "cin")
     rho_cp: float = float(params.get("rho_cp", 4000.0))
-    dH: np.ndarray = np.asarray(params.get("dH", [0.0] * kin.num_reactions), dtype=float)
+    dH: np.ndarray = _require_length(params.get("dH", [0.0] * kin.num_reactions), kin.num_reactions, "dH")
     tend: float = float(params.get("tend", 10.0))
     dt: float = float(params.get("dt", 0.05))
-
-    if len(dH) != kin.num_reactions:
-        raise ValueError("Length of dH must equal number of reactions")
 
     def rhs(_t: float, y: np.ndarray) -> np.ndarray:
         c = y[:-1]
@@ -190,7 +204,7 @@ def simulate_pfr_isothermal(kin: ReactionKinetics, params: Dict) -> pd.DataFrame
     dC/dz = nu^T r(C,T), with C(0) = Cin
     """
     T: float = float(params.get("T", params.get("T0", 300.0)))
-    cin: np.ndarray = np.asarray(params.get("cin", [0.0] * kin.num_species), dtype=float)
+    cin: np.ndarray = _require_length(params.get("cin", [0.0] * kin.num_species), kin.num_species, "cin")
     tau_end: float = float(params.get("tau_end", params.get("z_end", 5.0)))
     dt: float = float(params.get("dt", 0.05))
 
