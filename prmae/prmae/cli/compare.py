@@ -93,7 +93,15 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
     }
 
 
-def fit_predict_catboost_residual(X_tr: np.ndarray, y_res_tr: np.ndarray, X_val: np.ndarray | None, y_res_val: np.ndarray | None, X_te: np.ndarray, pth_te: np.ndarray, cfg: CatBoostConfig) -> Tuple[np.ndarray, Dict[str, float]]:
+def fit_predict_catboost_residual(
+    X_tr: np.ndarray,
+    y_res_tr: np.ndarray,
+    X_val: np.ndarray | None,
+    y_res_val: np.ndarray | None,
+    X_te: np.ndarray,
+    pth_te: np.ndarray,
+    cfg: CatBoostConfig,
+) -> Tuple[np.ndarray, Dict[str, float], CatBoostRegressor]:
     t0 = time.time()
     sp = CatBoostSpecialist(cfg)
     sp.fit(X_tr, y_res_tr, X_val, y_res_val)
@@ -102,10 +110,17 @@ def fit_predict_catboost_residual(X_tr: np.ndarray, y_res_tr: np.ndarray, X_val:
     r_pred = sp.predict(X_te).reshape(-1)
     y_pred = pth_te + r_pred
     t_test = time.time() - t1
-    return y_pred, {'train_s': t_train, 'test_s': t_test}
+    return y_pred, {'train_s': t_train, 'test_s': t_test}, sp.model
 
 
-def fit_predict_catboost_direct(X_tr: np.ndarray, y_tr: np.ndarray, X_val: np.ndarray | None, y_val: np.ndarray | None, X_te: np.ndarray, cfg_args: Dict) -> Tuple[np.ndarray, Dict[str, float]]:
+def fit_predict_catboost_direct(
+    X_tr: np.ndarray,
+    y_tr: np.ndarray,
+    X_val: np.ndarray | None,
+    y_val: np.ndarray | None,
+    X_te: np.ndarray,
+    cfg_args: Dict,
+) -> Tuple[np.ndarray, Dict[str, float], CatBoostRegressor]:
     model = CatBoostRegressor(
         depth=cfg_args['depth'],
         learning_rate=cfg_args['learning_rate'],
@@ -124,7 +139,7 @@ def fit_predict_catboost_direct(X_tr: np.ndarray, y_tr: np.ndarray, X_val: np.nd
     t1 = time.time()
     y_pred = model.predict(X_te)
     t_test = time.time() - t1
-    return y_pred, {'train_s': t_train, 'test_s': t_test}
+    return y_pred, {'train_s': t_train, 'test_s': t_test}, model
 
 
 def build_baselines() -> Dict[str, object]:
@@ -205,6 +220,78 @@ def plot_explanations_row(models_info: List[Tuple[str, object, np.ndarray, np.nd
     plt.close()
 
 
+def save_basic_plots(y_true: np.ndarray, y_pred: np.ndarray, ws: np.ndarray, out_dir: str) -> None:
+    os.makedirs(out_dir, exist_ok=True)
+    # timeseries
+    plt.figure(figsize=(12, 4))
+    plt.plot(y_true, label='Observed', linewidth=1.5)
+    plt.plot(y_pred, label='Predicted', linewidth=1.2)
+    plt.xlabel('Time index')
+    plt.ylabel('Power (kW)')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, 'timeseries.png'))
+    plt.close()
+
+    # scatter
+    plt.figure(figsize=(5, 5))
+    sns.scatterplot(x=y_true, y=y_pred, s=10, alpha=0.5)
+    lims = [min(y_true.min(), y_pred.min()), max(y_true.max(), y_pred.max())]
+    plt.plot(lims, lims, 'r--', linewidth=1)
+    plt.xlabel('Observed (kW)')
+    plt.ylabel('Predicted (kW)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, 'scatter_obs_pred.png'))
+    plt.close()
+
+    # residual vs wind speed
+    resid = y_pred - y_true
+    plt.figure(figsize=(6, 4))
+    sns.scatterplot(x=ws, y=resid, s=10, alpha=0.4)
+    plt.axhline(0.0, color='k', linestyle='--', linewidth=1)
+    plt.xlabel('Wind speed (m/s)')
+    plt.ylabel('Residual (kW)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, 'residual_vs_ws.png'))
+    plt.close()
+
+    # residual histogram
+    plt.figure(figsize=(6, 4))
+    sns.histplot(resid, bins=50, kde=True)
+    plt.xlabel('Residual (kW)')
+    plt.ylabel('Count')
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, 'residual_hist.png'))
+    plt.close()
+
+
+def save_catboost_explainers(model: CatBoostRegressor, X: np.ndarray, feature_names: List[str], out_dir: str) -> None:
+    os.makedirs(out_dir, exist_ok=True)
+    # feature importance
+    importances = model.get_feature_importance()
+    order = np.argsort(importances)[::-1]
+    plt.figure(figsize=(6, 4))
+    sns.barplot(x=importances[order], y=np.array(feature_names)[order])
+    plt.xlabel('Importance')
+    plt.ylabel('Feature')
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, 'feature_importance.png'))
+    plt.close()
+
+    # SHAP summary
+    shap_vals = model.get_feature_importance(data=X, type='ShapValues')
+    shap_vals = shap_vals[:, :-1]
+    mean_abs = np.mean(np.abs(shap_vals), axis=0)
+    order = np.argsort(mean_abs)[::-1]
+    plt.figure(figsize=(6, 4))
+    sns.barplot(x=mean_abs[order], y=np.array(feature_names)[order])
+    plt.xlabel('Mean |SHAP|')
+    plt.ylabel('Feature')
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, 'shap_summary.png'))
+    plt.close()
+
+
 def main():
     args = build_argparser().parse_args()
     outdir = ensure_outdir(args.output_dir)
@@ -243,25 +330,31 @@ def main():
         m_phys = compute_metrics(y_test, y_pred_phys)
         results_rows.append({'fold': fi+1, 'model': 'Physics', **m_phys})
         agg_metrics.setdefault('Physics', []).append(m_phys)
+        # Physics plots
+        save_basic_plots(y_test, y_pred_phys, X_test[:, 0], os.path.join(fold_dir, 'Physics'))
 
         # AI-only (CatBoost direct)
-        y_pred_ai, t_ai = fit_predict_catboost_direct(X_tr, y_tr, X_val, y_val, X_test, {
+        y_pred_ai, t_ai, cb_direct_model = fit_predict_catboost_direct(X_tr, y_tr, X_val, y_val, X_test, {
             'depth': args.cb_depth, 'learning_rate': args.cb_lr, 'l2_leaf_reg': args.cb_l2, 'iterations': args.cb_iter,
         })
         m_ai = compute_metrics(y_test, y_pred_ai)
         results_rows.append({'fold': fi+1, 'model': 'AI_CatBoost', **m_ai, **t_ai})
         agg_metrics.setdefault('AI_CatBoost', []).append(m_ai)
+        save_basic_plots(y_test, y_pred_ai, X_test[:, 0], os.path.join(fold_dir, 'AI_CatBoost'))
+        save_catboost_explainers(cb_direct_model, X_test, feature_columns, os.path.join(fold_dir, 'AI_CatBoost'))
 
         # Hybrid (CatBoost residual + P_th)
         r_total_tr = (y_tr - pth[tr][:len(y_tr)])
         r_total_val = (y_val - pth[tr][len(y_tr):]) if X_val is not None else None
         r_total_te = (y_test - pth_test)
-        y_pred_hyb, t_hyb = fit_predict_catboost_residual(X_tr, r_total_tr, X_val, r_total_val, X_test, pth_test, CatBoostConfig(
+        y_pred_hyb, t_hyb, cb_res_model = fit_predict_catboost_residual(X_tr, r_total_tr, X_val, r_total_val, X_test, pth_test, CatBoostConfig(
             depth=args.cb_depth, learning_rate=args.cb_lr, l2_leaf_reg=args.cb_l2, iterations=args.cb_iter
         ))
         m_hyb = compute_metrics(y_test, y_pred_hyb)
         results_rows.append({'fold': fi+1, 'model': 'Hybrid_CatBoost+Pth', **m_hyb, **t_hyb})
         agg_metrics.setdefault('Hybrid_CatBoost+Pth', []).append(m_hyb)
+        save_basic_plots(y_test, y_pred_hyb, X_test[:, 0], os.path.join(fold_dir, 'Hybrid_CatBoost+Pth'))
+        save_catboost_explainers(cb_res_model, X_test, feature_columns, os.path.join(fold_dir, 'Hybrid_CatBoost+Pth'))
 
         # Baselines
         if args.include_baselines:
