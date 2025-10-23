@@ -38,6 +38,8 @@ class PRMAEModel(nn.Module):
         p_theoretical: torch.Tensor,
         attn_context: torch.Tensor,
         specialist_output: Optional[torch.Tensor] = None,
+        attn_weights_override: Optional[torch.Tensor] = None,  # (B, 4)
+        component_mask: Optional[torch.Tensor] = None,  # (B, 4) or (4,)
     ) -> Dict[str, torch.Tensor]:
         # x_*: (B, T_k, D), p_theoretical: (B,), attn_context: (B, F)
         r_micro_seq = self.micro(x_micro)  # (B, T_micro)
@@ -55,7 +57,27 @@ class PRMAEModel(nn.Module):
             sp = specialist_output[:, 0]
 
         # Attention weights over [micro, meso, macro, specialist]
-        weights = self.attn(attn_context)  # (B, 4)
+        if attn_weights_override is not None:
+            weights = attn_weights_override
+        else:
+            weights = self.attn(attn_context)  # (B, 4)
+
+        # Optional component mask (e.g., for ablations). Renormalize to sum=1.
+        if component_mask is not None:
+            if component_mask.dim() == 1:
+                component_mask = component_mask.unsqueeze(0).expand(weights.size(0), -1)
+            weights = weights * component_mask
+            sums = weights.sum(dim=-1, keepdim=True)
+            # If all masked -> fall back to uniform over available (avoid div-by-zero)
+            zero_mask = (sums <= 1e-8)
+            if zero_mask.any():
+                # uniform over unmasked components
+                mask = component_mask
+                denom = mask.sum(dim=-1, keepdim=True).clamp_min(1.0)
+                uni = mask / denom
+                weights = torch.where(zero_mask, uni, weights)
+                sums = weights.sum(dim=-1, keepdim=True)
+            weights = weights / sums
         alpha_micro, alpha_meso, alpha_macro, beta_sp = torch.split(weights, 1, dim=-1)
         alpha_micro = alpha_micro[:, 0]
         alpha_meso = alpha_meso[:, 0]

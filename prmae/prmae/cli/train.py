@@ -36,6 +36,13 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument('--cb.depth', type=int, default=6)
     p.add_argument('--cb.lr', type=float, default=0.05)
     p.add_argument('--cb.l2', type=float, default=3.0)
+    # Ablations and attention controls
+    p.add_argument('--ablate.micro', dest='ablate_micro', action='store_true')
+    p.add_argument('--ablate.meso', dest='ablate_meso', action='store_true')
+    p.add_argument('--ablate.macro', dest='ablate_macro', action='store_true')
+    p.add_argument('--ablate.specialist', dest='ablate_specialist', action='store_true')
+    p.add_argument('--attn.uniform', dest='attn_uniform', action='store_true')
+    p.add_argument('--attn.pinn_pref', dest='attn_pinn_pref', type=float, default=None)
     return p
 
 
@@ -72,14 +79,31 @@ def main():
     model = PRMAEModel(input_dim=input_dim, window_sizes={"micro": args.micro, "meso": args.meso, "macro": args.macro}, attention_context_dim=attn_context_dim)
     trainer = PRMAETrainer(model, physics=PhysicsParams(), weights=LossWeights(), lr=args.lr, device=args.device)
 
+    # Component mask [micro, meso, macro, specialist]
+    comp_mask = np.array([
+        0.0 if args.ablate_micro else 1.0,
+        0.0 if args.ablate_meso else 1.0,
+        0.0 if args.ablate_macro else 1.0,
+        0.0 if args.ablate_specialist else 1.0,
+    ], dtype=np.float32)
+
     for epoch in range(args.epochs):
         total = 0.0
         count = 0
         for batch in train_loader:
             # get specialist preds for this batch
-            sp = cb.predict(batch['attn_context'].numpy())  # (B,1)
+            sp = cb.predict(batch['attn_context'].detach().cpu().numpy())  # (B,1)
             batch = {k: v for k, v in batch.items()}
             batch['specialist_output'] = torch.from_numpy(sp).to(args.device)
+            # attention override if requested
+            attn_override = None
+            if args.attn_uniform:
+                attn_override = torch.ones((sp.shape[0], 4), dtype=torch.float32)
+                attn_override = attn_override / attn_override.sum(dim=-1, keepdims=True)
+            elif args.attn_pinn_pref is not None:
+                pinn = max(0.0, min(1.0, float(args.attn_pinn_pref)))
+                w = np.array([pinn/3, pinn/3, pinn/3, 1.0 - pinn], dtype=np.float32)
+                attn_override = torch.from_numpy(np.tile(w, (sp.shape[0], 1)))
             # forward with specialist
             trainer.model.train()
             outputs = trainer.model(
@@ -89,6 +113,8 @@ def main():
                 batch['p_theoretical'].to(args.device),
                 batch['attn_context'].to(args.device),
                 batch['specialist_output'],
+                attn_weights_override=(attn_override.to(args.device) if attn_override is not None else None),
+                component_mask=torch.from_numpy(comp_mask).to(args.device),
             )
             # compute loss using trainer logic (reuse step without double forward)
             # Rebuild batch dict expected by trainer
@@ -135,8 +161,19 @@ def main():
     ys = []
     ps = []
     with torch.no_grad():
+        all_r_micro = []
+        all_r_meso = []
+        all_r_macro = []
         for batch in test_loader:
-            sp = cb.predict(batch['attn_context'].numpy())
+            sp = cb.predict(batch['attn_context'].detach().cpu().numpy())
+            attn_override = None
+            if args.attn_uniform:
+                attn_override = torch.ones((sp.shape[0], 4), dtype=torch.float32)
+                attn_override = attn_override / attn_override.sum(dim=-1, keepdims=True)
+            elif args.attn_pinn_pref is not None:
+                pinn = max(0.0, min(1.0, float(args.attn_pinn_pref)))
+                w = np.array([pinn/3, pinn/3, pinn/3, 1.0 - pinn], dtype=np.float32)
+                attn_override = torch.from_numpy(np.tile(w, (sp.shape[0], 1)))
             out = model(
                 batch['x_micro'].to(args.device),
                 batch['x_meso'].to(args.device),
@@ -144,13 +181,35 @@ def main():
                 batch['p_theoretical'].to(args.device),
                 batch['attn_context'].to(args.device),
                 torch.from_numpy(sp).to(args.device),
+                attn_weights_override=(attn_override.to(args.device) if attn_override is not None else None),
+                component_mask=torch.from_numpy(comp_mask).to(args.device),
             )
-            ys.append(batch['y'].numpy())
-            ps.append(out['p_pred'].cpu().numpy())
+            ys.append(batch['y'].detach().cpu().numpy())
+            ps.append(out['p_pred'].detach().cpu().numpy())
+            all_r_micro.append(out['r_micro'].detach().cpu().numpy())
+            all_r_meso.append(out['r_meso'].detach().cpu().numpy())
+            all_r_macro.append(out['r_macro'].detach().cpu().numpy())
     y = np.concatenate(ys)
     p = np.concatenate(ps)
     rmse = float(np.sqrt(np.mean((y-p)**2)))
-    print(f"Test RMSE: {rmse:.3f} kW")
+    # Physics Validity Score
+    # cp_est = p / (0.5 * rho * A * v^3)
+    rho = 1.225
+    area = 5026.5
+    # wind speed from last step of micro window for test set
+    ws = []
+    for batch in test_loader:
+        ws.append(batch['x_micro'][:, -1, 0].detach().cpu().numpy())
+    ws = np.concatenate(ws)
+    denom = 0.5 * rho * area * (np.power(ws, 3) + 1e-6)
+    cp_est = np.clip(p / denom, 0.0, 1.0)
+    from prmae.evaluation.metrics import physics_validity_score, residual_energy_attribution
+    pv = physics_validity_score(cp_est)
+    r_stats = residual_energy_attribution(
+        np.concatenate(all_r_micro), np.concatenate(all_r_meso), np.concatenate(all_r_macro)
+    )
+    print(f"Test RMSE: {rmse:.3f} kW | Physics-Validity: {pv:.3f}")
+    print(f"Residual attribution (var frac): micro={r_stats['micro_var_frac']:.2f}, meso={r_stats['meso_var_frac']:.2f}, macro={r_stats['macro_var_frac']:.2f}")
 
 
 if __name__ == '__main__':
