@@ -68,7 +68,7 @@ def main():
     )
 
     # Train CatBoost on residuals r_total with context features
-    cb_cfg = CatBoostConfig(depth=args.cb.depth, learning_rate=args.cb.lr, l2_leaf_reg=args.cb.l2, iterations=args.cb.iter)
+    cb_cfg = CatBoostConfig(depth=args.cb_depth, learning_rate=args.cb_lr, l2_leaf_reg=args.cb_l2, iterations=args.cb_iter)
     cb = CatBoostSpecialist(cb_cfg)
     sp_arrays = extract_specialist_arrays(train_ds, val_ds, test_ds)
     cb.fit(sp_arrays.X_train, sp_arrays.y_train, sp_arrays.X_val, sp_arrays.y_val)
