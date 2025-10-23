@@ -67,6 +67,31 @@ class PRMAEDataset(Dataset):
         }
 
 
+@dataclass
+class SplitArrays:
+    X_train: np.ndarray
+    y_train: np.ndarray
+    X_val: np.ndarray
+    y_val: np.ndarray
+    X_test: np.ndarray
+    y_test: np.ndarray
+
+
+def extract_specialist_arrays(
+    train_ds: PRMAEDataset,
+    val_ds: PRMAEDataset,
+    test_ds: PRMAEDataset,
+) -> SplitArrays:
+    return SplitArrays(
+        X_train=train_ds.attn_context.astype(np.float32),
+        y_train=train_ds.r_total.astype(np.float32),
+        X_val=val_ds.attn_context.astype(np.float32),
+        y_val=val_ds.r_total.astype(np.float32),
+        X_test=test_ds.attn_context.astype(np.float32),
+        y_test=test_ds.r_total.astype(np.float32),
+    )
+
+
 def create_dataloaders(
     df: pd.DataFrame,
     feature_columns: list,
@@ -75,7 +100,7 @@ def create_dataloaders(
     train_ratio: float = 0.7,
     val_ratio: float = 0.15,
     step: int = 1,
-) -> Tuple[DataLoader, DataLoader, DataLoader]:
+) -> Tuple[DataLoader, DataLoader, DataLoader, Tuple[PRMAEDataset, PRMAEDataset, PRMAEDataset]]:
     n = len(df)
     i_train = int(n * train_ratio)
     i_val = int(n * (train_ratio + val_ratio))
@@ -92,4 +117,4 @@ def create_dataloaders(
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=0)
 
-    return train_loader, val_loader, test_loader
+    return train_loader, val_loader, test_loader, (train_ds, val_ds, test_ds)
