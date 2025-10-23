@@ -31,11 +31,11 @@ def build_argparser() -> argparse.ArgumentParser:
 
     p.add_argument('--device', type=str, default='cpu')
 
-    # CatBoost flags
-    p.add_argument('--cb.iter', type=int, default=500)
-    p.add_argument('--cb.depth', type=int, default=6)
-    p.add_argument('--cb.lr', type=float, default=0.05)
-    p.add_argument('--cb.l2', type=float, default=3.0)
+    # CatBoost flags (support both dot and underscore)
+    p.add_argument('--cb.iter', '--cb_iter', dest='cb_iter', type=int, default=500)
+    p.add_argument('--cb.depth', '--cb_depth', dest='cb_depth', type=int, default=6)
+    p.add_argument('--cb.lr', '--cb_lr', dest='cb_lr', type=float, default=0.05)
+    p.add_argument('--cb.l2', '--cb_l2', dest='cb_l2', type=float, default=3.0)
     # Ablations and attention controls
     p.add_argument('--ablate.micro', dest='ablate_micro', action='store_true')
     p.add_argument('--ablate.meso', dest='ablate_meso', action='store_true')

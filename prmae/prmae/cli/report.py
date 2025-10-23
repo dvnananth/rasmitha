@@ -31,11 +31,11 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument('--rho', type=float, default=1.225, help='Air density (kg/m^3)')
     p.add_argument('--rotor_area', type=float, default=5026.5, help='Rotor swept area (m^2)')
 
-    # CatBoost
-    p.add_argument('--cb.iter', type=int, default=800)
-    p.add_argument('--cb.depth', type=int, default=8)
-    p.add_argument('--cb.lr', type=float, default=0.03)
-    p.add_argument('--cb.l2', type=float, default=5.0)
+    # CatBoost (support both dot and underscore flags)
+    p.add_argument('--cb.iter', '--cb_iter', dest='cb_iter', type=int, default=800)
+    p.add_argument('--cb.depth', '--cb_depth', dest='cb_depth', type=int, default=8)
+    p.add_argument('--cb.lr', '--cb_lr', dest='cb_lr', type=float, default=0.03)
+    p.add_argument('--cb.l2', '--cb_l2', dest='cb_l2', type=float, default=5.0)
 
     # Optional analyses
     p.add_argument('--shap', action='store_true', help='Compute SHAP attributions (can be slow)')
@@ -192,7 +192,7 @@ def main():
             X_tr, y_tr = X_train, y_train
             X_val, y_val = None, None
 
-        cb_cfg = CatBoostConfig(depth=args.cb.depth, learning_rate=args.cb.lr, l2_leaf_reg=args.cb.l2, iterations=args.cb.iter)
+        cb_cfg = CatBoostConfig(depth=args.cb_depth, learning_rate=args.cb_lr, l2_leaf_reg=args.cb_l2, iterations=args.cb_iter)
         cb = CatBoostSpecialist(cb_cfg)
         cb.fit(X_tr, y_tr, X_val, y_val)
 

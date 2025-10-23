@@ -32,7 +32,7 @@ class TexasColumns:
 def load_t1_csv(path: str, cols: T1Columns = T1Columns()) -> pd.DataFrame:
     df = pd.read_csv(path)
     # Parse time with multiple possible formats
-    df["timestamp"] = pd.to_datetime(df[cols.timestamp], errors="coerce", dayfirst=True, infer_datetime_format=True)
+    df["timestamp"] = pd.to_datetime(df[cols.timestamp], errors="coerce", dayfirst=True)
     df = df.sort_values("timestamp").reset_index(drop=True)
 
     # Rename to canonical
@@ -60,7 +60,7 @@ def load_t1_csv(path: str, cols: T1Columns = T1Columns()) -> pd.DataFrame:
 
 def load_texas_csv(path: str, cols: TexasColumns = TexasColumns()) -> pd.DataFrame:
     df = pd.read_csv(path)
-    df["timestamp"] = pd.to_datetime(df[cols.timestamp], errors="coerce", infer_datetime_format=True)
+    df["timestamp"] = pd.to_datetime(df[cols.timestamp], errors="coerce")
     df = df.sort_values("timestamp").reset_index(drop=True)
     rename_map = {
         cols.power_kw: "power_kw",
