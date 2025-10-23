@@ -14,6 +14,7 @@ import seaborn as sns
 from catboost import CatBoostRegressor
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression, Ridge, HuberRegressor, RANSACRegressor, BayesianRidge
+from sklearn.inspection import permutation_importance
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.svm import SVR
@@ -34,6 +35,8 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument('--output_dir', type=str, default=None)
     p.add_argument('--cv.folds', dest='cv_folds', type=int, default=1)
     p.add_argument('--include_baselines', action='store_true')
+    p.add_argument('--include_transformer', action='store_true', help='Optional (requires torch); skipped if unavailable')
+    p.add_argument('--include_gnn', action='store_true', help='Optional (requires torch-geometric); skipped if unavailable')
 
     # CatBoost config (use underscores when calling)
     p.add_argument('--cb_iter', type=int, default=800)
@@ -130,9 +133,9 @@ def build_baselines() -> Dict[str, object]:
         'MLP': MLPRegressor(hidden_layer_sizes=(100,), activation='relu', solver='adam', max_iter=500, random_state=42),
         'Ridge': Ridge(alpha=1.0),
         'LR': LinearRegression(fit_intercept=True, positive=False),
-        'BR': BayesianRidge(n_iter=300),
+        'BR': BayesianRidge(),
         'RF': RandomForestRegressor(n_estimators=100, bootstrap=True, random_state=42, n_jobs=-1),
-        'RSC': RANSACRegressor(random_state=42, max_trials=100, min_samples=0.5, loss='absolute_error'),
+        'RSC': RANSACRegressor(random_state=42, max_trials=100, min_samples=0.5),
         'KNN': KNeighborsRegressor(n_neighbors=5, weights='uniform'),
         'HR': HuberRegressor(alpha=0.0001, epsilon=1.35),
         'SVR': SVR(kernel='rbf', C=1.0, epsilon=0.1),
@@ -161,6 +164,42 @@ def plot_bar_metrics(agg: Dict[str, Dict[str, float]], out_path: str) -> None:
         sns.barplot(x=models, y=vals, ax=axes[i])
         axes[i].set_title(m)
         axes[i].tick_params(axis='x', rotation=30)
+    plt.tight_layout()
+    plt.savefig(out_path)
+    plt.close()
+
+
+def plot_explanations_row(models_info: List[Tuple[str, object, np.ndarray, np.ndarray]], feature_names: List[str], out_path: str) -> None:
+    """Plot a horizontal row of feature attribution bars for multiple models.
+
+    models_info: list of (model_name, fitted_model, X_test, y_test)
+    For CatBoost, uses SHAP via CatBoost. For others, uses permutation importance.
+    """
+    cols = len(models_info)
+    if cols == 0:
+        return
+    fig, axes = plt.subplots(1, cols, figsize=(4 * cols, 4), squeeze=False)
+    axes = axes[0]
+    for i, (name, model, X_te, y_te) in enumerate(models_info):
+        ax = axes[i]
+        try:
+            if isinstance(model, CatBoostRegressor):
+                pool = model._train_params.get('eval_set', None)  # not reliable
+                # Use CatBoost's SHAP on provided X_te
+                shap_vals = model.get_feature_importance(data=X_te, type='ShapValues')
+                shap_vals = shap_vals[:, :-1]
+                scores = np.mean(np.abs(shap_vals), axis=0)
+                title = f'{name} (SHAP)'
+            else:
+                pi = permutation_importance(model, X_te, y_te, n_repeats=5, random_state=42)
+                scores = pi.importances_mean
+                title = f'{name} (PermImp)'
+            order = np.argsort(scores)[::-1][:10]
+            sns.barplot(x=scores[order], y=np.array(feature_names)[order], ax=ax)
+            ax.set_title(title)
+        except Exception:
+            ax.text(0.5, 0.5, 'Explainer failed', ha='center', va='center')
+            ax.set_axis_off()
     plt.tight_layout()
     plt.savefig(out_path)
     plt.close()
@@ -227,11 +266,27 @@ def main():
         # Baselines
         if args.include_baselines:
             baselines = build_baselines()
+            explain_models: List[Tuple[str, object, np.ndarray, np.ndarray]] = []
             for name, model in baselines.items():
                 y_pred_b, t_b = fit_predict_sklearn(model, X_tr, y_tr, X_test)
                 m_b = compute_metrics(y_test, y_pred_b)
                 results_rows.append({'fold': fi+1, 'model': name, **m_b, **t_b})
                 agg_metrics.setdefault(name, []).append(m_b)
+                try:
+                    explain_models.append((name, model, X_test, y_test))
+                except Exception:
+                    pass
+            # Also include CatBoost direct in explanations row
+            try:
+                cb_direct = CatBoostRegressor(depth=args.cb_depth, learning_rate=args.cb_lr, l2_leaf_reg=args.cb_l2, iterations=args.cb_iter, loss_function='RMSE', verbose=0, random_seed=42)
+                if X_val is not None and y_val is not None:
+                    cb_direct.fit(X_tr, y_tr, eval_set=(X_val, y_val))
+                else:
+                    cb_direct.fit(X_tr, y_tr)
+                explain_models.append(('AI_CatBoost', cb_direct, X_test, y_test))
+            except Exception:
+                pass
+            plot_explanations_row(explain_models, feature_columns, os.path.join(fold_dir, 'explanations_row.png'))
 
     # Aggregate
     agg_summary: Dict[str, Dict[str, float]] = {}
