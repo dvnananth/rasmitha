@@ -650,11 +650,11 @@
         else if(!e.shiftKey && document.activeElement===last){ first.focus(); e.preventDefault(); }
       }
 
-      // Login
+      // Login (no mandatory fields)
       qs('#loginBtn').addEventListener('click',()=>{
         const u = qs('#login-username').value.trim();
         const p = qs('#login-password').value;
-        if(!u || !p){ alert('Enter username & password'); return; }
+        // proceed regardless of empty values
         qs('#login-screen').style.display='none';
         qs('#main-app').style.display='block';
       });
@@ -708,7 +708,7 @@
         const username = qs('#su_username').value.trim();
         const email = qs('#su_email').value.trim();
         const pwd = qs('#su_password').value;
-        if(!name || !username || !pwd){ alert('Name, username and password are required'); return; }
+        // save even if some fields are empty (simulation)
         const perms = qsa('[data-perm]')
           .filter(cb=>cb.checked)
           .map(cb=>cb.getAttribute('data-perm'));
@@ -725,7 +725,7 @@
       qs('#submitChangeMasterBtn').addEventListener('click',()=>{
         const u = qs('#master_username').value.trim();
         const p = qs('#master_password').value;
-        if(!u || !p){ alert('Both fields required'); return; }
+        // proceed regardless of empty values
         closeModal('modalChangeMaster');
         alert('Master credentials changed (simulation)\nUsername: '+u);
       });
