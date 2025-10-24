@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Super Admin - HCM Dashboard</title>
+  <style>
+    :root{
+      --bg:#f5f7fa; --sidebar:#1e293b; --accent:#2563eb; --card:#fff;
+      --text:#1e293b; --muted:#6b7280; --border:#e5e7eb; --light:#f3f4f6;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Inter, Segoe UI, Arial, sans-serif}
+    body{background:var(--bg);color:var(--text)}
+    a{text-decoration:none;color:inherit}
+    button{cursor:pointer}
+
+    /* LOGIN SCREEN */
+    #login-screen{
+      height:100vh;display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(120deg,#1e3a8a,#2563eb);
+      padding:16px;
+    }
+    .login-box{
+      background:#fff;padding:30px;border-radius:12px;width:100%;max-width:360px;
+      box-shadow:0 10px 40px rgba(0,0,0,.2);
+    }
+    .login-box h2{text-align:center;margin-bottom:20px;color:#111827}
+    .login-box label{display:block;margin-bottom:6px;font-weight:500}
+    .login-box input{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin-bottom:14px;font-size:14px}
+    .login-box button{width:100%;background:var(--accent);border:none;padding:10px;border-radius:8px;color:#fff;font-weight:600}
+    .login-box button:hover{background:#1d4ed8}
+
+    /* MAIN APP */
+    #main-app{display:none;height:100vh;overflow:hidden}
+
+    .sidebar{
+      width:240px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0
+    }
+    .sidebar h2{padding:20px;font-size:18px;background:rgba(255,255,255,.05)}
+    .sidebar ul{list-style:none;margin-top:20px;flex:1;overflow-y:auto}
+    .sidebar li{padding:14px 20px;cursor:pointer;font-size:14px;border-left:3px solid transparent}
+    .sidebar li:hover{background:rgba(255,255,255,.08)}
+    .sidebar li.active{background:rgba(255,255,255,.15);border-left:3px solid var(--accent)}
+
+    .main-content{margin-left:240px;height:100vh;overflow-y:auto;padding:20px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+    .topbar h1{font-size:20px;font-weight:600}
+
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+    .card{background:var(--card);padding:16px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+    .card h3{font-size:14px;color:var(--muted);margin-bottom:6px}
+    .card p{font-size:22px;font-weight:700;color:var(--text)}
+
+    .btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 12px}
+    .btn:hover{background:#1d4ed8}
+    .btn-secondary{background:#6b7280;color:#fff}
+    .btn-secondary:hover{background:#4b5563}
+    .small-btn{padding:6px 10px;border-radius:6px;font-size:13px}
+
+    .table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+    .table th,.table td{padding:10px;border-bottom:1px solid var(--border);text-align:left;background:#fff}
+    .table thead th{background:#f9fafb;color:var(--muted);font-weight:700}
+
+    .action-btn{position:relative}
+    .action-dropdown{
+      position:absolute;top:28px;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:6px;display:none;min-width:160px;box-shadow:0 8px 20px rgba(0,0,0,.08);z-index:50
+    }
+    .action-dropdown a{display:block;padding:8px 12px;font-size:13px;color:#111}
+    .action-dropdown a:hover{background:#f3f4f6}
+
+    /* CLIENT CARDS */
+    .client-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-top:12px}
+    .client-card{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.05);padding:16px;position:relative}
+    .client-card h3{font-size:16px;margin-bottom:6px}
+    .client-card p{font-size:13px;color:var(--muted);margin:4px 0}
+    .client-card .action-btn{position:absolute;top:12px;right:12px}
+
+    /* MODALS */
+    .modal{display:none;position:fixed;z-index:200;inset:0;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;padding:20px}
+    .modal .modal-box{background:#fff;width:100%;max-width:900px;border-radius:10px;padding:18px;max-height:90vh;overflow:auto;position:relative;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+    .modal .close-btn{position:absolute;right:14px;top:10px;background:none;border:none;font-size:20px}
+
+    .label{display:block;margin-top:10px;font-weight:600;font-size:13px}
+    .input, textarea, select{width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-top:6px;font-size:14px}
+    textarea{min-height:80px;resize:vertical}
+
+    .kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #eee}
+    .small{font-size:13px;color:var(--muted)}
+    .notice{background:#fff;padding:10px;border-radius:8px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.03)}
+
+    .section{display:none}
+    .section.active{display:block}
+
+    /* Wizard */
+    .progressbar{display:flex;justify-content:space-between;position:relative;margin-bottom:24px}
+    .progressbar::before{content:"";position:absolute;top:50%;left:0;transform:translateY(-50%);width:100%;height:4px;background:var(--border);z-index:0}
+    .step-indicator{position:relative;z-index:1;background:var(--light);color:var(--muted);padding:8px 12px;border-radius:20px;font-size:13px;font-weight:500;transition:all .3s}
+    .step-indicator.active{background:var(--accent);color:#fff}
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <section id="login-screen" aria-label="Login">
+    <div class="login-box" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <h2 id="login-title">Master User Login</h2>
+      <label class="label" for="username">Username</label>
+      <input class="input" type="text" id="username" placeholder="Enter username" autocomplete="username" />
+      <label class="label" for="password">Password</label>
+      <input class="input" type="password" id="password" placeholder="Enter password" autocomplete="current-password" />
+      <button id="loginBtn" class="btn" style="margin-top:8px">Login</button>
+    </div>
+  </section>
+
+  <!-- MAIN APP -->
+  <section id="main-app" aria-label="Application">
+    <aside class="sidebar" aria-label="Sidebar">
+      <h2>Super Admin</h2>
+      <ul id="menu-list">
+        <li class="active" data-section="dashboard">Dashboard</li>
+        <li data-section="superusers">Super Users</li>
+        <li data-section="clients">Clients</li>
+        <li data-section="menus">Menus</li>
+        <li data-section="submenus">Sub Menus</li>
+        <li data-section="functions">Functions</li>
+        <li data-section="notifications">Notifications</li>
+        <li data-section="lettertags">Letter Tags</li>
+      </ul>
+    </aside>
+
+    <div class="main-content">
+      <!-- Dashboard -->
+      <div class="section active" id="dashboard">
+        <div class="topbar"><h1>Dashboard Overview</h1></div>
+        <div class="cards">
+          <div class="card"><h3>Total Clients</h3><p>28</p></div>
+          <div class="card"><h3>Active Clients</h3><p>24</p></div>
+          <div class="card"><h3>Inactive Clients</h3><p>4</p></div>
+          <div class="card"><h3>Subscriptions Due</h3><p>6</p></div>
+        </div>
+
+        <h3 style="margin-top:8px">Clients List</h3>
+        <div class="client-cards">
+          <div class="client-card" data-client-id="acme">
+            <div class="action-btn">
+              <button class="btn small-btn" aria-haspopup="menu" aria-expanded="false" data-dropdown-toggle>⋮</button>
+              <div class="action-dropdown" role="menu">
+                <a href="#" onclick="alert('View client (simulated)');return false;" role="menuitem">View</a>
+                <a href="#" onclick="alert('Edit client (simulated)');return false;" role="menuitem">Edit</a>
+                <a href="#" onclick="alert('Deactivate client (simulated)');return false;" role="menuitem">Deactivate</a>
+                <a href="#" onclick="alert('Activate client (simulated)');return false;" role="menuitem">Activate</a>
+              </div>
+            </div>
+            <h3>Acme Corp</h3>
+            <p>Region: APAC</p><p>Modules: HR, Payroll</p>
+          </div>
+
+          <div class="client-card" data-client-id="globex">
+            <div class="action-btn">
+              <button class="btn small-btn" aria-haspopup="menu" aria-expanded="false" data-dropdown-toggle>⋮</button>
+              <div class="action-dropdown" role="menu">
+                <a href="#" onclick="alert('View client (simulated)');return false;" role="menuitem">View</a>
+                <a href="#" onclick="alert('Edit client (simulated)');return false;" role="menuitem">Edit</a>
+                <a href="#" onclick="alert('Deactivate client (simulated)');return false;" role="menuitem">Deactivate</a>
+                <a href="#" onclick="alert('Activate client (simulated)');return false;" role="menuitem">Activate</a>
+              </div>
+            </div>
+            <h3>Globex</h3>
+            <p>Region: EMEA</p><p>Modules: Leave, Attendance</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Super Users -->
+      <div class="section" id="superusers">
+        <div class="topbar">
+          <h1>Super Users</h1>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn" id="btnAddSuper">Add Super User</button>
+            <button class="btn btn-secondary" id="btnChangeMaster">Change Master</button>
+          </div>
+        </div>
+
+        <table class="table" id="tblSuperUsers">
+          <thead>
+            <tr><th>Name</th><th>Username</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>John Doe</td><td>john.d</td><td>john@demo.com</td><td>9876543210</td><td>Active</td>
+              <td>
+                <div class="action-btn">
+                  <button class="btn small-btn" aria-haspopup="menu" aria-expanded="false" data-dropdown-toggle>⋮</button>
+                  <div class="action-dropdown" role="menu">
+                    <a href="#" onclick="viewSuperUser(0);return false;" role="menuitem">View</a>
+                    <a href="#" onclick="editSuperUser(0);return false;" role="menuitem">Edit</a>
+                    <a href="#" onclick="sendNotificationSuper(0);return false;" role="menuitem">Send Notification</a>
+                    <a href="#" onclick="toggleSuperStatus(0);return false;" role="menuitem">Deactivate</a>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Clients -->
+      <div class="section" id="clients">
+        <div class="topbar">
+          <h1>Clients</h1>
+          <button class="btn" id="btnAddClient">Add Client</button>
+        </div>
+
+        <table class="table">
+          <thead><tr><th>Client Name</th><th>Region</th><th>Subscription</th><th>Modules</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Acme Corp</td><td>APAC</td><td>Active</td><td>HR, Payroll</td>
+              <td>
+                <div class="action-btn">
+                  <button class="btn small-btn" aria-haspopup="menu" aria-expanded="false" data-dropdown-toggle>⋮</button>
+                  <div class="action-dropdown" role="menu">
+                    <a href="#" onclick="alert('View Details (simulated)');return false;" role="menuitem">View Details</a>
+                    <a href="#" onclick="alert('Edit (simulated)');return false;" role="menuitem">Edit</a>
+                    <a href="#" onclick="alert('Deactivate (simulated)');return false;" role="menuitem">Deactivate</a>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Menus -->
+      <div class="section" id="menus"><div class="topbar"><h1>Menus Management</h1></div><p>Configure Global Menus here.</p></div>
+
+      <!-- Submenus -->
+      <div class="section" id="submenus"><div class="topbar"><h1>Sub Menus Management</h1></div><p>Configure sub menus for modules.</p></div>
+
+      <!-- Functions -->
+      <div class="section" id="functions"><div class="topbar"><h1>Functions Management</h1></div><p>Manage screen-level functions.</p></div>
+
+      <!-- Notifications -->
+      <div class="section" id="notifications"><div class="topbar"><h1>Notifications</h1></div><p>Configure system notifications and renewals.</p></div>
+
+      <!-- Letter Tags -->
+      <div class="section" id="lettertags"><div class="topbar"><h1>Letter Tags</h1></div><p>Manage HR letter placeholders and templates.</p></div>
+    </div>
+  </section>
+
+  <!-- MODALS -->
+  <!-- Add Super User Modal -->
+  <div class="modal" id="modalAddSuper" aria-hidden="true">
+    <div class="modal-box">
+      <button class="close-btn" aria-label="Close" onclick="closeModal('modalAddSuper')">✖</button>
+      <h2>Add Super User</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px">
+        <div>
+          <label class="label" for="su_name">Name</label>
+          <input id="su_name" class="input" type="text" placeholder="Full name" />
+        </div>
+        <div>
+          <label class="label" for="su_username">Username</label>
+          <input id="su_username" class="input" type="text" placeholder="Username" />
+        </div>
+        <div>
+          <label class="label" for="su_password">Password</label>
+          <input id="su_password" class="input" type="password" placeholder="Password" />
+        </div>
+        <div>
+          <label class="label" for="su_email">Email</label>
+          <input id="su_email" class="input" type="email" placeholder="name@company.com" />
+        </div>
+        <div>
+          <label class="label" for="su_phone">Phone</label>
+          <input id="su_phone" class="input" type="tel" placeholder="Phone" />
+        </div>
+      </div>
+
+      <div style="margin-top:14px">
+        <div class="small" style="margin-bottom:6px">Permissions</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;background:#f9fafb;border:1px solid var(--border);border-radius:8px;padding:10px">
+          <label><input type="checkbox" id="perm_master" /> Master</label>
+          <label><input type="checkbox" id="perm_create" /> Create</label>
+          <label><input type="checkbox" id="perm_view" /> View</label>
+          <label><input type="checkbox" id="perm_edit" /> Edit</label>
+          <label><input type="checkbox" id="perm_deact" /> Deactivate</label>
+          <label><input type="checkbox" id="perm_react" /> Reactivate</label>
+        </div>
+        <label class="label" style="display:flex;gap:8px;align-items:center;margin-top:10px">
+          <input type="checkbox" id="sendNotifyAfterSave" /> Send credentials email after save
+        </label>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+        <button class="btn btn-secondary" onclick="closeModal('modalAddSuper')">Cancel</button>
+        <button class="btn" onclick="submitAddSuper()">Save Super User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Master Modal -->
+  <div class="modal" id="modalChangeMaster" aria-hidden="true">
+    <div class="modal-box">
+      <button class="close-btn" aria-label="Close" onclick="closeModal('modalChangeMaster')">✖</button>
+      <h2>Change Master Credentials</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px">
+        <div>
+          <label class="label" for="master_username">New Master Username</label>
+          <input id="master_username" class="input" type="text" placeholder="master_admin" />
+        </div>
+        <div>
+          <label class="label" for="master_password">New Master Password</label>
+          <input id="master_password" class="input" type="password" placeholder="••••••••" />
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+        <button class="btn btn-secondary" onclick="closeModal('modalChangeMaster')">Cancel</button>
+        <button class="btn" onclick="submitChangeMaster()">Change</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Client Modal (Wizard) -->
+  <div class="modal" id="addClientModal" aria-hidden="true">
+    <div class="modal-box">
+      <button class="close-btn" aria-label="Close" onclick="closeModal('addClientModal')">✖</button>
+      <h2>Add New Client</h2>
+
+      <div class="progressbar" style="margin-top:10px">
+        <div class="step-indicator active">Details</div>
+        <div class="step-indicator">Modules</div>
+        <div class="step-indicator">Subscription</div>
+        <div class="step-indicator">Akrivia Approval</div>
+        <div class="step-indicator">Client Approval</div>
+        <div class="step-indicator">Creation</div>
+        <div class="step-indicator">Admin Release</div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="form-step active">
+        <h3>Step 1: Client Details</h3>
+        <label class="label">Client Name</label><input class="input" type="text">
+        <label class="label">Address</label><textarea class="input"></textarea>
+        <label class="label">Contact Person</label><input class="input" type="text">
+        <label class="label">Email</label><input class="input" type="email">
+        <label class="label">Phone</label><input class="input" type="text">
+        <label class="label">Region</label><input class="input" type="text">
+        <label class="label">Client Code</label><input class="input" type="text">
+        <label class="label">Client URLs</label><input class="input" type="url">
+      </div>
+
+      <!-- Step 2 -->
+      <div class="form-step">
+        <h3>Step 2: Modules & Integrations</h3>
+        <label class="label">HCM Modules</label>
+        <select class="input" multiple>
+          <option>Leave</option><option>Payroll</option><option>Recruitment</option>
+        </select>
+        <label class="label">Third Party Integrations</label><input class="input" type="text">
+        <label class="label">Languages</label><input class="input" type="text">
+      </div>
+
+      <!-- Step 3 -->
+      <div class="form-step">
+        <h3>Step 3: Subscription Details</h3>
+        <label class="label">Start Date</label><input class="input" type="date">
+        <label class="label">Renewal Date</label><input class="input" type="date">
+        <label class="label">Total Users</label><input class="input" type="number">
+        <label class="label">Amount/User</label><input class="input" type="number">
+        <label class="label">Total Amount</label><input class="input" type="number">
+        <label class="label">Payment Status</label><select class="input"><option>Pending</option><option>Settled</option></select>
+        <label class="label">Buffer Period</label><input class="input" type="number">
+        <label class="label">Subscription SPOC Name</label><input class="input" type="text">
+        <label class="label">Email</label><input class="input" type="email">
+        <label class="label">Phone</label><input class="input" type="text">
+      </div>
+
+      <!-- Step 4 -->
+      <div class="form-step">
+        <h3>Step 4: Akrivia Approval</h3>
+        <label class="label">Name</label><input class="input" type="text">
+        <label class="label">Email</label><input class="input" type="email">
+        <label class="label">Phone</label><input class="input" type="text">
+        <label class="label">Designation</label><input class="input" type="text">
+        <div style="margin-top:8px"><button class="btn" onclick="alert('Akrivia approval simulated')">Send to Approval</button></div>
+        <div style="margin-top:10px">Akrivia Approval Status: <span class="small" style="background:#fff3cd;padding:6px;border-radius:8px">Not Sent</span></div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="form-step">
+        <h3>Step 5: Client Approval</h3>
+        <p class="small">Sends notification to Subscription SPOC (email) with PDF details or link — SPOC can Approve/Reject with comments.</p>
+        <label class="label">SPOC Name</label><input class="input" type="text">
+        <label class="label">SPOC Email</label><input class="input" type="email">
+        <label class="label">SPOC Phone</label><input class="input" type="text">
+        <div style="margin-top:8px"><button class="btn" onclick="alert('Client approval simulated')">Send Notification to SPOC</button></div>
+        <div style="margin-top:10px">Client Approval Status: <span class="small" style="background:#fff3cd;padding:6px;border-radius:8px">Not Sent</span></div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="form-step">
+        <h3>Step 6: Client Creation</h3>
+        <p class="small">Once Step 4 & Step 5 are Approved, Create will be enabled.</p>
+        <div style="margin-top:8px"><button class="btn" onclick="alert('Create client simulated')">Create Client</button></div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="form-step">
+        <h3>Step 7: Admin Release</h3>
+        <p class="small">Generate admin username and OTP, then release to SPOC via email (simulated).</p>
+        <label class="label">Admin Username</label><input class="input" type="text" readonly value="admin_user_001">
+        <label class="label">OTP (temporary)</label><input class="input" type="text" readonly value="839210">
+        <div style="margin-top:8px"><button class="btn" onclick="alert('Admin release simulated')">Release to SPOC</button></div>
+      </div>
+
+      <!-- Navigation -->
+      <div style="text-align:right;margin-top:20px">
+        <button class="btn btn-secondary" id="prevBtn">Previous</button>
+        <button class="btn" id="nextBtn">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      'use strict';
+      const qs = (sel) => document.querySelector(sel);
+      const qsa = (sel) => document.querySelectorAll(sel);
+
+      // Login
+      const loginBtn = qs('#loginBtn');
+      if (loginBtn) {
+        loginBtn.addEventListener('click', function(){
+          const u = qs('#username').value.trim();
+          const p = qs('#password').value;
+          if(u && p){
+            qs('#login-screen').style.display = 'none';
+            qs('#main-app').style.display = 'block';
+          } else {
+            alert('Enter username & password');
+          }
+        });
+      }
+
+      // Sidebar navigation
+      qsa('#menu-list li').forEach((li) => {
+        li.addEventListener('click', () => {
+          qsa('#menu-list li').forEach((l) => l.classList.remove('active'));
+          li.classList.add('active');
+          const sec = li.getAttribute('data-section');
+          qsa('.section').forEach((s) => s.classList.remove('active'));
+          const activeSection = qs('#' + sec);
+          if (activeSection) activeSection.classList.add('active');
+        });
+      });
+
+      // Dropdowns
+      function closeAllDropdowns(){ qsa('.action-dropdown').forEach((el)=> el.style.display='none'); }
+      document.addEventListener('click', (e) => {
+        const trigger = e.target.closest('[data-dropdown-toggle]');
+        if (trigger) {
+          const container = trigger.closest('.action-btn');
+          const dd = container ? container.querySelector('.action-dropdown') : null;
+          if (dd) {
+            const isOpen = dd.style.display === 'block';
+            closeAllDropdowns();
+            dd.style.display = isOpen ? 'none' : 'block';
+          }
+          return;
+        }
+        if (!e.target.closest('.action-btn')) closeAllDropdowns();
+      });
+
+      // Modal helpers
+      window.openModal = function(id){ const el = qs('#'+id); if(el){ el.style.display='flex'; if(id==='addClientModal'){ resetClientWizard(); } } };
+      window.closeModal = function(id){ const el = qs('#'+id); if(el){ el.style.display='none'; } };
+
+      // Super user modal wiring
+      const addSuperBtn = qs('#btnAddSuper');
+      if (addSuperBtn) addSuperBtn.addEventListener('click', ()=> openModal('modalAddSuper'));
+      const changeMasterBtn = qs('#btnChangeMaster');
+      if (changeMasterBtn) changeMasterBtn.addEventListener('click', ()=> openModal('modalChangeMaster'));
+      const addClientBtn = qs('#btnAddClient');
+      if (addClientBtn) addClientBtn.addEventListener('click', ()=> openModal('addClientModal'));
+
+      window.submitAddSuper = function(){
+        const name = qs('#su_name').value.trim();
+        const username = qs('#su_username').value.trim();
+        const pwd = qs('#su_password').value;
+        if(!name || !username || !pwd){ alert('Name, username and password are required'); return; }
+        const perms = [];
+        if(qs('#perm_master').checked) perms.push('Master');
+        if(qs('#perm_create').checked) perms.push('Create');
+        if(qs('#perm_view').checked) perms.push('View');
+        if(qs('#perm_edit').checked) perms.push('Edit');
+        if(qs('#perm_deact').checked) perms.push('Deactivate');
+        if(qs('#perm_react').checked) perms.push('Reactivate');
+        const notifyOption = qs('#sendNotifyAfterSave').checked;
+        closeModal('modalAddSuper');
+        alert('Super User "' + name + '" created (simulation).\nPermissions: ' + (perms.join(', ')||'None'));
+        if(notifyOption){
+          alert('Notification simulated: Sent credentials to ' + (qs('#su_email').value || '(no email)') + '\nURL: https://admin.example.com\nUsername: ' + username + '\nPassword: ' + pwd);
+        }
+      };
+
+      window.submitChangeMaster = function(){
+        const u = qs('#master_username').value.trim();
+        const p = qs('#master_password').value;
+        if(!u || !p){ alert('Both fields required'); return; }
+        closeModal('modalChangeMaster');
+        alert('Master credentials changed (simulation)\nUsername: ' + u);
+      };
+
+      // Super user actions for inline links
+      window.viewSuperUser = function(idx){ alert('View Super User (simulation)\nRow index: ' + idx); };
+      window.editSuperUser = function(idx){ alert('Edit Super User (simulation)\nRow index: ' + idx); openModal('modalAddSuper'); };
+      window.sendNotificationSuper = function(idx){ alert('Send Notification to Super User (simulation)\nRow index: ' + idx); };
+      window.toggleSuperStatus = function(idx){ alert('Toggle Active/Inactive (simulation)\nRow index: ' + idx); };
+
+      // Add Client wizard
+      const wizard = {
+        current: 0,
+        steps: qsa('#addClientModal .form-step'),
+        indicators: qsa('#addClientModal .step-indicator'),
+        prevBtn: qs('#prevBtn'),
+        nextBtn: qs('#nextBtn')
+      };
+
+      function showClientStep(i){
+        wizard.steps.forEach((s, idx) => s.classList.toggle('active', idx === i));
+        wizard.indicators.forEach((ind, idx) => ind.classList.toggle('active', idx === i));
+        if (wizard.prevBtn) wizard.prevBtn.style.display = (i === 0) ? 'none' : 'inline-block';
+        if (wizard.nextBtn) wizard.nextBtn.textContent = (i === wizard.steps.length - 1) ? 'Finish' : 'Next';
+      }
+      function resetClientWizard(){ wizard.current = 0; showClientStep(wizard.current); }
+
+      if (wizard.nextBtn) wizard.nextBtn.addEventListener('click', () => {
+        if (wizard.current < wizard.steps.length - 1) wizard.current++;
+        else { alert('All steps completed (simulation)'); closeModal('addClientModal'); }
+        showClientStep(wizard.current);
+      });
+      if (wizard.prevBtn) wizard.prevBtn.addEventListener('click', () => {
+        if (wizard.current > 0) wizard.current--; showClientStep(wizard.current);
+      });
+
+      // Initialize wizard state
+      resetClientWizard();
+    })();
+  </script>
+</body>
+</html>
