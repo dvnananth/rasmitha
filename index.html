@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Super Admin • HCM Dashboard</title>
+  <style>
+    :root{
+      --bg:#f6f8fb;--surface:#ffffff;--ink:#0f172a;--muted:#6b7280;--border:#e5e7eb;
+      --sidebar:#0b1220;--sidebar-ink:#e5e7eb;--accent:#2563eb;--accent-hover:#1d4ed8;
+      --warning:#fff3cd;--success:#e7f8ef;--danger:#fee2e2;--overlay:rgba(0,0,0,.5);
+      --shadow-sm:0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-md:0 4px 10px rgba(0,0,0,.08);
+      --radius-sm:8px;--radius-md:12px;--radius-lg:16px
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{font-family:Inter, Segoe UI, Roboto, Arial, sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+    img{max-width:100%;display:block}
+    a{text-decoration:none;color:inherit}
+    button{font:inherit}
+
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;border-radius:var(--radius-sm);padding:10px 14px;font-weight:600;background:var(--accent);color:#fff;box-shadow:var(--shadow-sm)}
+    .btn:hover{background:var(--accent-hover)}
+    .btn.secondary{background:#6b7280}
+    .btn.secondary:hover{background:#4b5563}
+    .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--border)}
+    .btn.ghost:hover{background:#f3f4f6}
+    .btn.small{padding:6px 10px;border-radius:6px;font-size:13px}
+
+    /* Forms */
+    label{display:block;margin-top:12px;margin-bottom:6px;font-weight:600;font-size:13px;color:#0f172a}
+    input,select,textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--ink);font-size:14px}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+    textarea{min-height:96px;resize:vertical}
+    .field-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+    .help{font-size:12px;color:var(--muted)}
+
+    /* Login */
+    #login-screen{display:flex;min-height:100vh;align-items:center;justify-content:center;
+      background:radial-gradient(1200px 600px at 10% 10%, #0b1220 0, rgba(11,18,32,0) 50%),
+                 radial-gradient(1200px 600px at 90% 90%, #1d4ed8 0, rgba(29,78,216,0) 50%),
+                 linear-gradient(120deg,#0b1220,#1e3a8a 60%,#2563eb);
+      padding:24px}
+    .login-card{width:380px;max-width:100%;background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);padding:24px}
+    .login-title{font-size:20px;font-weight:700;margin-bottom:6px}
+    .login-sub{font-size:13px;color:var(--muted);margin-bottom:16px}
+    .login-actions{margin-top:12px}
+
+    /* App layout */
+    #main-app{display:none;height:100vh;overflow:hidden}
+    .sidebar{position:fixed;inset:0 auto 0 0;width:248px;background:var(--sidebar);color:var(--sidebar-ink);display:flex;flex-direction:column}
+    .brand{padding:18px 18px;border-bottom:1px solid rgba(255,255,255,.06);font-weight:800;letter-spacing:.3px}
+    .nav{list-style:none;padding:8px;overflow:auto;flex:1}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;color:var(--sidebar-ink);border-left:3px solid transparent}
+    .nav-item:hover{background:rgba(255,255,255,.06)}
+    .nav-item.active{background:rgba(255,255,255,.1);border-left-color:var(--accent)}
+
+    .content{margin-left:248px;height:100vh;overflow:auto;padding:20px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .topbar h1{font-size:20px}
+
+    /* Cards */
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-sm);padding:14px}
+    .card h3{font-size:13px;color:var(--muted);margin-bottom:6px}
+    .card .value{font-size:24px;font-weight:800;color:var(--ink)}
+
+    /* Tables */
+    .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-sm);overflow:auto}
+    table{width:100%;border-collapse:collapse;min-width:760px;background:#fff}
+    thead th{position:sticky;top:0;background:#f9fafb;color:var(--muted);font-size:13px;text-align:left;padding:10px;border-bottom:1px solid var(--border)}
+    tbody td{padding:10px;border-bottom:1px solid var(--border)}
+
+    /* Client cards */
+    .client-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+    .client-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-sm);padding:14px}
+    .client-card h3{font-size:16px;margin-bottom:6px}
+    .client-card p{font-size:13px;color:var(--muted);margin:2px 0}
+
+    /* Dropdown */
+    .action{position:relative;display:inline-block}
+    .dropdown{position:absolute;right:0;top:36px;min-width:180px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-md);padding:6px 0;display:none;z-index:20}
+    .dropdown.open{display:block}
+    .dropdown a{display:block;padding:9px 12px;font-size:13px;color:#111}
+    .dropdown a:hover{background:#f3f4f6}
+
+    /* Sections */
+    .section{display:none}
+    .section.active{display:block}
+
+    /* Modals */
+    .modal{position:fixed;inset:0;background:var(--overlay);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}
+    .modal.open{display:flex}
+    .modal-box{width:100%;max-width:980px;background:#fff;border-radius:12px;padding:18px;box-shadow:0 16px 44px rgba(0,0,0,.25);max-height:90vh;overflow:auto;position:relative}
+    .modal-close{position:absolute;top:12px;right:12px;border:none;background:transparent;font-size:22px;cursor:pointer}
+
+    /* Wizard */
+    .wizard{margin-top:8px}
+    .progressbar{position:relative;margin:12px 0 18px}
+    .progress-rail{height:4px;background:var(--border);border-radius:2px}
+    .progress-fill{height:4px;background:var(--accent);border-radius:2px;width:0%;margin-top:-4px;position:relative}
+    .steps{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px}
+    .step-indicator{background:#f3f4f6;color:var(--muted);padding:8px 10px;border-radius:20px;font-size:12px;font-weight:700;text-align:center}
+    .step-indicator.active{background:var(--accent);color:#fff}
+    .form-step{display:none;animation:fade .18s ease}
+    .form-step.active{display:block}
+    .wizard-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+    @keyframes fade{from{opacity:0}to{opacity:1}}
+
+    /* Permissions table */
+    .perm-wrap{border:1px solid var(--border);border-radius:12px;padding:14px;background:#fff;margin-top:12px}
+    .perm-table{width:100%;border-collapse:collapse}
+    .perm-table th,.perm-table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:center}
+    .perm-table th{background:#f9fafb;font-weight:700}
+    .perm-table td:first-child{text-align:left;font-weight:600}
+    .perm-desc{display:block;font-size:12px;color:var(--muted);font-weight:400}
+
+    /* Utilities */
+    .notice{background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-sm);padding:10px;margin-bottom:12px}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px}
+    .badge.warn{background:var(--warning)}
+
+    /* Responsive */
+    @media (max-width: 780px){
+      .sidebar{position:static;width:100%;height:auto}
+      .content{margin-left:0}
+    }
+  </style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <section id="login-screen" aria-labelledby="login-title">
+    <div class="login-card" role="dialog" aria-modal="true">
+      <h2 id="login-title" class="login-title">Master User Login</h2>
+      <div class="login-sub">Sign in to Super Admin console</div>
+      <label for="login-username">Username</label>
+      <input id="login-username" type="text" placeholder="Enter username" autocomplete="username" />
+      <label for="login-password">Password</label>
+      <input id="login-password" type="password" placeholder="Enter password" autocomplete="current-password" />
+      <div class="login-actions">
+        <button id="loginBtn" class="btn" type="button">Login</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- APP -->
+  <section id="main-app">
+    <aside class="sidebar" aria-label="Primary">
+      <div class="brand">Super Admin</div>
+      <ul id="menu-list" class="nav" role="tablist">
+        <li class="nav-item active" role="tab" aria-selected="true" tabindex="0" data-section="dashboard">Dashboard</li>
+        <li class="nav-item" role="tab" aria-selected="false" tabindex="0" data-section="superusers">Super Users</li>
+        <li class="nav-item" role="tab" aria-selected="false" tabindex="0" data-section="clients">Clients</li>
+        <li class="nav-item" role="tab" aria-selected="false" tabindex="0" data-section="menus">Menus</li>
+        <li class="nav-item" role="tab" aria-selected="false" tabindex="0" data-section="submenus">Sub Menus</li>
+        <li class="nav-item" role="tab" aria-selected="false" tabindex="0" data-section="functions">Functions</li>
+        <li class="nav-item" role="tab" aria-selected="false" tabindex="0" data-section="notifications">Notifications</li>
+        <li class="nav-item" role="tab" aria-selected="false" tabindex="0" data-section="lettertags">Letter Tags</li>
+      </ul>
+    </aside>
+
+    <div class="content">
+      <!-- Dashboard -->
+      <section class="section active" id="dashboard" role="tabpanel" aria-labelledby="tab-dashboard">
+        <div class="topbar"><h1>Dashboard Overview</h1></div>
+        <div class="cards">
+          <div class="card"><h3>Total Clients</h3><div class="value">28</div></div>
+          <div class="card"><h3>Active Clients</h3><div class="value">24</div></div>
+          <div class="card"><h3>Inactive Clients</h3><div class="value">4</div></div>
+          <div class="card"><h3>Subscriptions Due</h3><div class="value">6</div></div>
+        </div>
+
+        <h3 style="margin:6px 0 8px">Clients</h3>
+        <div class="client-grid">
+          <article class="client-card" data-client-id="acme">
+            <div class="action" style="position:absolute;top:12px;right:12px">
+              <button class="btn small ghost" type="button" aria-haspopup="menu" aria-expanded="false" data-dropdown-toggle>⋮</button>
+              <nav class="dropdown" role="menu">
+                <a href="#" role="menuitem">View</a>
+                <a href="#" role="menuitem">Edit</a>
+                <a href="#" role="menuitem">Deactivate</a>
+                <a href="#" role="menuitem">Activate</a>
+              </nav>
+            </div>
+            <h3>Acme Corp</h3>
+            <p>Region: APAC</p>
+            <p>Modules: HR, Payroll</p>
+          </article>
+
+          <article class="client-card" data-client-id="globex">
+            <div class="action" style="position:absolute;top:12px;right:12px">
+              <button class="btn small ghost" type="button" aria-haspopup="menu" aria-expanded="false" data-dropdown-toggle>⋮</button>
+              <nav class="dropdown" role="menu">
+                <a href="#" role="menuitem">View</a>
+                <a href="#" role="menuitem">Edit</a>
+                <a href="#" role="menuitem">Deactivate</a>
+                <a href="#" role="menuitem">Activate</a>
+              </nav>
+            </div>
+            <h3>Globex</h3>
+            <p>Region: EMEA</p>
+            <p>Modules: Leave, Attendance</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Super Users -->
+      <section class="section" id="superusers" role="tabpanel">
+        <div class="topbar">
+          <h1>Super Users</h1>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn" id="btnAddSuper" type="button">Add Super User</button>
+            <button class="btn secondary" id="btnChangeMaster" type="button">Change Master</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table aria-label="Super Users">
+            <thead>
+              <tr>
+                <th>Name</th><th>Username</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>John Doe</td><td>john.d</td><td>john@demo.com</td><td>9876543210</td><td>Active</td>
+                <td>
+                  <div class="action">
+                    <button class="btn small ghost" type="button" aria-haspopup="menu" aria-expanded="false" data-dropdown-toggle>⋮</button>
+                    <nav class="dropdown" role="menu">
+                      <a href="#" role="menuitem" data-action="su-view" data-row="0">View</a>
+                      <a href="#" role="menuitem" data-action="su-edit" data-row="0">Edit</a>
+                      <a href="#" role="menuitem" data-action="su-notify" data-row="0">Send Notification</a>
+                      <a href="#" role="menuitem" data-action="su-toggle" data-row="0">Deactivate</a>
+                    </nav>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Clients -->
+      <section class="section" id="clients" role="tabpanel">
+        <div class="topbar">
+          <h1>Clients</h1>
+          <button class="btn" id="btnAddClient" type="button">Add Client</button>
+        </div>
+        <div class="table-wrap">
+          <table aria-label="Clients">
+            <thead>
+              <tr><th>Client Name</th><th>Region</th><th>Subscription</th><th>Modules</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Acme Corp</td><td>APAC</td><td>Active</td><td>HR, Payroll</td>
+                <td>
+                  <div class="action">
+                    <button class="btn small ghost" type="button" aria-haspopup="menu" aria-expanded="false" data-dropdown-toggle>⋮</button>
+                    <nav class="dropdown" role="menu">
+                      <a href="#" role="menuitem">View Details</a>
+                      <a href="#" role="menuitem">Edit</a>
+                      <a href="#" role="menuitem">Deactivate</a>
+                    </nav>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Menus -->
+      <section class="section" id="menus" role="tabpanel">
+        <div class="topbar"><h1>Menus Management</h1></div>
+        <p class="help">Configure Global Menus here.</p>
+      </section>
+
+      <!-- Submenus -->
+      <section class="section" id="submenus" role="tabpanel">
+        <div class="topbar"><h1>Sub Menus Management</h1></div>
+        <p class="help">Configure sub menus for modules.</p>
+      </section>
+
+      <!-- Functions -->
+      <section class="section" id="functions" role="tabpanel">
+        <div class="topbar"><h1>Functions Management</h1></div>
+        <p class="help">Manage screen-level functions.</p>
+      </section>
+
+      <!-- Notifications -->
+      <section class="section" id="notifications" role="tabpanel">
+        <div class="topbar"><h1>Notifications</h1></div>
+        <p class="help">Configure system notifications and renewals.</p>
+      </section>
+
+      <!-- Letter Tags -->
+      <section class="section" id="lettertags" role="tabpanel">
+        <div class="topbar"><h1>Letter Tags</h1></div>
+        <p class="help">Manage HR letter placeholders and templates.</p>
+      </section>
+    </div>
+  </section>
+
+  <!-- MODALS -->
+  <!-- Add Client Wizard -->
+  <div class="modal" id="addClientModal" role="dialog" aria-modal="true" aria-labelledby="addClientTitle">
+    <div class="modal-box">
+      <button class="modal-close" type="button" aria-label="Close" data-close="addClientModal">✖</button>
+      <h2 id="addClientTitle">Add New Client</h2>
+
+      <div class="wizard">
+        <div class="progressbar" aria-hidden="true">
+          <div class="progress-rail"></div>
+          <div class="progress-fill" id="wizardProgressFill" style="width:14.28%"></div>
+          <div class="steps" id="wizardProgress">
+            <div class="step-indicator active">1 • Details</div>
+            <div class="step-indicator">2 • Modules</div>
+            <div class="step-indicator">3 • Subscription</div>
+            <div class="step-indicator">4 • Akrivia Approval</div>
+            <div class="step-indicator">5 • Client Approval</div>
+            <div class="step-indicator">6 • Creation</div>
+            <div class="step-indicator">7 • Admin Release</div>
+          </div>
+        </div>
+
+        <div id="wizardSteps">
+          <!-- Step 1 -->
+          <div class="form-step active" data-step="0">
+            <h3>Step 1: Client Details</h3>
+            <div class="field-row">
+              <div>
+                <label for="cl_name">Client Name</label>
+                <input id="cl_name" type="text" placeholder="Acme Corporation">
+              </div>
+              <div>
+                <label for="cl_region">Region</label>
+                <input id="cl_region" type="text" placeholder="APAC">
+              </div>
+            </div>
+            <label for="cl_addr">Address</label>
+            <textarea id="cl_addr" placeholder="Street, City, State, Zip"></textarea>
+            <div class="field-row">
+              <div>
+                <label for="cl_contact">Contact Person</label>
+                <input id="cl_contact" type="text" placeholder="Jane Smith">
+              </div>
+              <div>
+                <label for="cl_email">Email</label>
+                <input id="cl_email" type="email" placeholder="contact@acme.com">
+              </div>
+              <div>
+                <label for="cl_phone">Phone</label>
+                <input id="cl_phone" type="text" placeholder="+1 555 000 0000">
+              </div>
+            </div>
+            <div class="field-row">
+              <div>
+                <label for="cl_code">Client Code</label>
+                <input id="cl_code" type="text" placeholder="ACM001">
+              </div>
+              <div>
+                <label for="cl_url">Client URL</label>
+                <input id="cl_url" type="url" placeholder="https://acme.example.com">
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="form-step" data-step="1">
+            <h3>Step 2: Modules & Integrations</h3>
+            <label for="cl_modules">HCM Modules</label>
+            <select id="cl_modules" multiple>
+              <option>Leave</option><option>Payroll</option><option>Recruitment</option><option>Attendance</option>
+            </select>
+            <div class="field-row">
+              <div>
+                <label for="cl_integrations">Third Party Integrations</label>
+                <input id="cl_integrations" type="text" placeholder="SAP, Workday">
+              </div>
+              <div>
+                <label for="cl_langs">Languages</label>
+                <input id="cl_langs" type="text" placeholder="EN, FR, DE">
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="form-step" data-step="2">
+            <h3>Step 3: Subscription Details</h3>
+            <div class="field-row">
+              <div>
+                <label for="sub_start">Start Date</label>
+                <input id="sub_start" type="date">
+              </div>
+              <div>
+                <label for="sub_renew">Renewal Date</label>
+                <input id="sub_renew" type="date">
+              </div>
+              <div>
+                <label for="sub_users">Total Users</label>
+                <input id="sub_users" type="number" min="0">
+              </div>
+              <div>
+                <label for="sub_price">Amount/User</label>
+                <input id="sub_price" type="number" step="0.01" min="0">
+              </div>
+              <div>
+                <label for="sub_total">Total Amount</label>
+                <input id="sub_total" type="number" step="0.01" min="0">
+              </div>
+            </div>
+            <div class="field-row">
+              <div>
+                <label for="sub_status">Payment Status</label>
+                <select id="sub_status"><option>Pending</option><option>Settled</option></select>
+              </div>
+              <div>
+                <label for="sub_buffer">Buffer Period (days)</label>
+                <input id="sub_buffer" type="number" min="0">
+              </div>
+            </div>
+            <div class="field-row">
+              <div>
+                <label for="spoc_name">Subscription SPOC Name</label>
+                <input id="spoc_name" type="text">
+              </div>
+              <div>
+                <label for="spoc_email">Email</label>
+                <input id="spoc_email" type="email">
+              </div>
+              <div>
+                <label for="spoc_phone">Phone</label>
+                <input id="spoc_phone" type="text">
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="form-step" data-step="3">
+            <h3>Step 4: Akrivia Approval</h3>
+            <div class="field-row">
+              <div>
+                <label for="ak_name">Name</label>
+                <input id="ak_name" type="text">
+              </div>
+              <div>
+                <label for="ak_email">Email</label>
+                <input id="ak_email" type="email">
+              </div>
+              <div>
+                <label for="ak_phone">Phone</label>
+                <input id="ak_phone" type="text">
+              </div>
+            </div>
+            <label for="ak_desg">Designation</label>
+            <input id="ak_desg" type="text">
+            <div style="margin-top:10px">
+              <button class="btn" type="button" data-sim="ak-approve">Send to Approval</button>
+            </div>
+            <div style="margin-top:10px">Akrivia Approval Status: <span class="badge warn" id="ak_status">Not Sent</span></div>
+          </div>
+
+          <!-- Step 5 -->
+          <div class="form-step" data-step="4">
+            <h3>Step 5: Client Approval</h3>
+            <p class="help">Notification goes to Subscription SPOC with details to Approve/Reject.</p>
+            <div class="field-row">
+              <div>
+                <label for="cspoc_name">SPOC Name</label>
+                <input id="cspoc_name" type="text">
+              </div>
+              <div>
+                <label for="cspoc_email">SPOC Email</label>
+                <input id="cspoc_email" type="email">
+              </div>
+              <div>
+                <label for="cspoc_phone">SPOC Phone</label>
+                <input id="cspoc_phone" type="text">
+              </div>
+            </div>
+            <div style="margin-top:10px">
+              <button class="btn" type="button" data-sim="client-approve">Send Notification to SPOC</button>
+            </div>
+            <div style="margin-top:10px">Client Approval Status: <span class="badge warn" id="client_status">Not Sent</span></div>
+          </div>
+
+          <!-- Step 6 -->
+          <div class="form-step" data-step="5">
+            <h3>Step 6: Client Creation</h3>
+            <p class="help">Once Step 4 & Step 5 are Approved, creation is enabled.</p>
+            <div style="margin-top:10px">
+              <button class="btn" type="button" data-sim="create-client">Create Client</button>
+            </div>
+          </div>
+
+          <!-- Step 7 -->
+          <div class="form-step" data-step="6">
+            <h3>Step 7: Admin Release</h3>
+            <p class="help">Generate admin username and OTP, then release to SPOC (simulated).</p>
+            <div class="field-row">
+              <div>
+                <label>Admin Username</label>
+                <input type="text" readonly value="admin_user_001">
+              </div>
+              <div>
+                <label>OTP (temporary)</label>
+                <input type="text" readonly value="839210">
+              </div>
+            </div>
+            <div style="margin-top:10px">
+              <button class="btn" type="button" data-sim="release-admin">Release to SPOC</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="wizard-actions">
+          <button class="btn secondary" id="wizardPrevBtn" type="button">Previous</button>
+          <button class="btn" id="wizardNextBtn" type="button">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Super User -->
+  <div class="modal" id="modalAddSuper" role="dialog" aria-modal="true" aria-labelledby="addSuperTitle">
+    <div class="modal-box">
+      <button class="modal-close" type="button" aria-label="Close" data-close="modalAddSuper">✖</button>
+      <h2 id="addSuperTitle">Add Super User</h2>
+      <div class="field-row">
+        <div><label for="su_name">Name</label><input id="su_name" type="text" /></div>
+        <div><label for="su_username">Username</label><input id="su_username" type="text" autocomplete="username" /></div>
+      </div>
+      <div class="field-row">
+        <div><label for="su_email">Email</label><input id="su_email" type="email" /></div>
+        <div><label for="su_phone">Phone</label><input id="su_phone" type="text" /></div>
+      </div>
+      <label for="su_password">Password</label><input id="su_password" type="password" autocomplete="new-password" />
+
+      <div style="margin-top:12px;font-weight:700">Permissions</div>
+      <div class="perm-wrap">
+        <table class="perm-table" aria-label="Permissions Matrix">
+          <thead>
+            <tr>
+              <th>Module</th><th>View</th><th>Edit</th><th>Deactivate</th><th>Reactivate</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Dashboard <span class="perm-desc">View analytics and summaries</span></td>
+              <td><input type="checkbox" data-perm="dashboard:view"></td>
+              <td colspan="3" style="color:#aaa;text-align:center">—</td>
+            </tr>
+            <tr>
+              <td>Client <span class="perm-desc">Manage client profiles and statuses</span></td>
+              <td><input type="checkbox" data-perm="client:view"></td>
+              <td><input type="checkbox" data-perm="client:edit"></td>
+              <td><input type="checkbox" data-perm="client:deactivate"></td>
+              <td><input type="checkbox" data-perm="client:reactivate"></td>
+            </tr>
+            <tr>
+              <td>Notifications <span class="perm-desc">Configure and send alerts</span></td>
+              <td><input type="checkbox" data-perm="notify:view"></td>
+              <td><input type="checkbox" data-perm="notify:edit"></td>
+              <td><input type="checkbox" data-perm="notify:deactivate"></td>
+              <td><input type="checkbox" data-perm="notify:reactivate"></td>
+            </tr>
+            <tr>
+              <td>Menus <span class="perm-desc">Set up main navigation items</span></td>
+              <td><input type="checkbox" data-perm="menus:view"></td>
+              <td><input type="checkbox" data-perm="menus:edit"></td>
+              <td><input type="checkbox" data-perm="menus:deactivate"></td>
+              <td><input type="checkbox" data-perm="menus:reactivate"></td>
+            </tr>
+            <tr>
+              <td>Submenus <span class="perm-desc">Manage submenu links and actions</span></td>
+              <td><input type="checkbox" data-perm="submenus:view"></td>
+              <td><input type="checkbox" data-perm="submenus:edit"></td>
+              <td><input type="checkbox" data-perm="submenus:deactivate"></td>
+              <td><input type="checkbox" data-perm="submenus:reactivate"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+        <label for="sendNotifyAfterSave">Send credentials notification after save</label>
+        <input type="checkbox" id="sendNotifyAfterSave">
+      </div>
+
+      <div style="text-align:right;margin-top:14px">
+        <button class="btn secondary" type="button" data-close="modalAddSuper">Cancel</button>
+        <button class="btn" type="button" id="submitAddSuperBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Master Credentials -->
+  <div class="modal" id="modalChangeMaster" role="dialog" aria-modal="true" aria-labelledby="changeMasterTitle">
+    <div class="modal-box">
+      <button class="modal-close" type="button" aria-label="Close" data-close="modalChangeMaster">✖</button>
+      <h2 id="changeMasterTitle">Change Master Credentials</h2>
+      <label for="master_username">New Master Username</label>
+      <input id="master_username" type="text" autocomplete="username">
+      <label for="master_password">New Master Password</label>
+      <input id="master_password" type="password" autocomplete="new-password">
+      <div style="text-align:right;margin-top:14px">
+        <button class="btn secondary" type="button" data-close="modalChangeMaster">Cancel</button>
+        <button class="btn" type="button" id="submitChangeMasterBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const qs = (sel,root=document)=>root.querySelector(sel);
+      const qsa = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+
+      // Basic focus trap for modals
+      const focusableSelector = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+      let lastActiveElement = null;
+      function openModal(id){
+        const el = qs('#'+id); if(!el) return;
+        lastActiveElement = document.activeElement;
+        el.classList.add('open');
+        const focusables = qsa(focusableSelector, el);
+        (focusables[0]||el).focus();
+        el.addEventListener('keydown', trap);
+      }
+      function closeModal(id){
+        const el = qs('#'+id); if(!el) return;
+        el.classList.remove('open');
+        el.removeEventListener('keydown', trap);
+        if(lastActiveElement && document.body.contains(lastActiveElement)) lastActiveElement.focus();
+      }
+      function trap(e){
+        if(e.key==='Escape'){
+          const m = e.currentTarget.closest('.modal');
+          if(m) closeModal(m.id);
+          return;
+        }
+        if(e.key!=='Tab') return;
+        const modal = e.currentTarget;
+        const f = qsa(focusableSelector, modal).filter(n=>n.offsetParent!==null);
+        if(!f.length) return;
+        const first=f[0], last=f[f.length-1];
+        if(e.shiftKey && document.activeElement===first){ last.focus(); e.preventDefault(); }
+        else if(!e.shiftKey && document.activeElement===last){ first.focus(); e.preventDefault(); }
+      }
+
+      // Login
+      qs('#loginBtn').addEventListener('click',()=>{
+        const u = qs('#login-username').value.trim();
+        const p = qs('#login-password').value;
+        if(!u || !p){ alert('Enter username & password'); return; }
+        qs('#login-screen').style.display='none';
+        qs('#main-app').style.display='block';
+      });
+
+      // Sidebar navigation (click + keyboard)
+      qsa('#menu-list .nav-item').forEach(item=>{
+        item.addEventListener('click',()=>activateSection(item));
+        item.addEventListener('keydown',(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); activateSection(item);} });
+      });
+      function activateSection(item){
+        qsa('#menu-list .nav-item').forEach(n=>{n.classList.remove('active');n.setAttribute('aria-selected','false');});
+        item.classList.add('active'); item.setAttribute('aria-selected','true');
+        const id = item.getAttribute('data-section');
+        qsa('.section').forEach(s=>s.classList.remove('active'));
+        const sec = qs('#'+id); if(sec) sec.classList.add('active');
+      }
+
+      // Dropdowns (global delegation)
+      document.addEventListener('click',(e)=>{
+        const toggle = e.target.closest('[data-dropdown-toggle]');
+        const anyOpen = qsa('.dropdown.open');
+        if(toggle){
+          const dd = toggle.nextElementSibling; const wasOpen = dd.classList.contains('open');
+          anyOpen.forEach(d=>d.classList.remove('open'));
+          qsa('[data-dropdown-toggle]').forEach(b=>b.setAttribute('aria-expanded','false'));
+          if(!wasOpen){ dd.classList.add('open'); toggle.setAttribute('aria-expanded','true'); }
+          e.stopPropagation(); return;
+        }
+        if(!e.target.closest('.action')){
+          anyOpen.forEach(d=>d.classList.remove('open'));
+          qsa('[data-dropdown-toggle]').forEach(b=>b.setAttribute('aria-expanded','false'));
+        }
+      });
+      document.addEventListener('keydown',(e)=>{
+        if(e.key==='Escape'){
+          qsa('.dropdown.open').forEach(d=>d.classList.remove('open'));
+          qsa('[data-dropdown-toggle]').forEach(b=>b.setAttribute('aria-expanded','false'));
+        }
+      });
+
+      // Open/close modals using [data-close]
+      document.addEventListener('click',(e)=>{
+        const closeId = e.target.getAttribute && e.target.getAttribute('data-close');
+        if(closeId) closeModal(closeId);
+      });
+
+      // Super user actions
+      qs('#btnAddSuper').addEventListener('click',()=>openModal('modalAddSuper'));
+      qs('#submitAddSuperBtn').addEventListener('click',()=>{
+        const name = qs('#su_name').value.trim();
+        const username = qs('#su_username').value.trim();
+        const email = qs('#su_email').value.trim();
+        const pwd = qs('#su_password').value;
+        if(!name || !username || !pwd){ alert('Name, username and password are required'); return; }
+        const perms = qsa('[data-perm]')
+          .filter(cb=>cb.checked)
+          .map(cb=>cb.getAttribute('data-perm'));
+        const notify = qs('#sendNotifyAfterSave').checked;
+        closeModal('modalAddSuper');
+        alert('Super User "'+name+'" created (simulation)\nPermissions: '+(perms.join(', ')||'None'));
+        if(notify){
+          alert('Notification (simulated)\nURL: https://admin.example.com\nUsername: '+username+'\nPassword: '+pwd+'\nEmail: '+(email||'(no email)'));
+        }
+      });
+
+      // Change Master
+      qs('#btnChangeMaster').addEventListener('click',()=>openModal('modalChangeMaster'));
+      qs('#submitChangeMasterBtn').addEventListener('click',()=>{
+        const u = qs('#master_username').value.trim();
+        const p = qs('#master_password').value;
+        if(!u || !p){ alert('Both fields required'); return; }
+        closeModal('modalChangeMaster');
+        alert('Master credentials changed (simulation)\nUsername: '+u);
+      });
+
+      // Add Client Wizard
+      qs('#btnAddClient').addEventListener('click',()=>openModal('addClientModal'));
+      let currentStep = 0;
+      const steps = qsa('#wizardSteps .form-step');
+      const indicators = qsa('#wizardProgress .step-indicator');
+      const fill = qs('#wizardProgressFill');
+      const prevBtn = qs('#wizardPrevBtn');
+      const nextBtn = qs('#wizardNextBtn');
+
+      function setProgress(step){
+        const pct = ((step+1)/steps.length)*100;
+        fill.style.width = pct+'%';
+        indicators.forEach((el,idx)=>el.classList.toggle('active', idx===step));
+      }
+      function showStep(i){
+        steps.forEach((s,idx)=>s.classList.toggle('active', idx===i));
+        setProgress(i);
+        prevBtn.disabled = i===0; prevBtn.style.opacity = i===0 ? .6 : 1;
+        nextBtn.textContent = i===steps.length-1 ? 'Finish' : 'Next';
+      }
+      showStep(currentStep);
+      prevBtn.addEventListener('click',()=>{ if(currentStep>0){ currentStep--; showStep(currentStep);} });
+      nextBtn.addEventListener('click',()=>{
+        if(currentStep < steps.length-1){ currentStep++; showStep(currentStep); }
+        else{
+          alert('All steps completed (simulation)');
+          closeModal('addClientModal');
+          currentStep = 0; showStep(currentStep);
+        }
+      });
+
+      // Wizard simulated buttons
+      document.addEventListener('click',(e)=>{
+        const btn = e.target.closest('[data-sim]'); if(!btn) return;
+        const t = btn.getAttribute('data-sim');
+        if(t==='ak-approve'){ qs('#ak_status').textContent='Sent'; alert('Akrivia approval request sent (simulated)'); }
+        if(t==='client-approve'){ qs('#client_status').textContent='Sent'; alert('Client approval notification sent (simulated)'); }
+        if(t==='create-client'){ alert('Client created (simulated)'); }
+        if(t==='release-admin'){ alert('Admin credentials released to SPOC (simulated)'); }
+      });
+
+      // Super-user table action handlers (delegated)
+      document.addEventListener('click',(e)=>{
+        const link = e.target.closest('[data-action^="su-"]'); if(!link) return;
+        const idx = link.getAttribute('data-row');
+        const action = link.getAttribute('data-action');
+        if(action==='su-view') alert('View Super User (simulation)\nRow index: '+idx);
+        if(action==='su-edit'){ alert('Edit Super User (simulation)\nRow index: '+idx); openModal('modalAddSuper'); }
+        if(action==='su-notify') alert('Send Notification to Super User (simulation)\nRow index: '+idx);
+        if(action==='su-toggle') alert('Toggle Active/Inactive (simulation)\nRow index: '+idx);
+      });
+    })();
+  </script>
+</body>
+</html>
