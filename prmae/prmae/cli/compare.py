@@ -38,6 +38,10 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument('--include_transformer', action='store_true', help='Optional (requires torch); skipped if unavailable')
     p.add_argument('--include_gnn', action='store_true', help='Optional (requires torch-geometric); skipped if unavailable')
 
+    # Physics constants for physics-validity
+    p.add_argument('--rho', type=float, default=1.225, help='Air density (kg/m^3)')
+    p.add_argument('--rotor_area', type=float, default=5026.5, help='Rotor swept area (m^2)')
+
     # CatBoost config (use underscores when calling)
     p.add_argument('--cb_iter', type=int, default=800)
     p.add_argument('--cb_depth', type=int, default=8)
@@ -328,6 +332,11 @@ def main():
         # Physics-only
         y_pred_phys = pth_test
         m_phys = compute_metrics(y_test, y_pred_phys)
+        # Physics-validity (Cp bounds)
+        denom_phys = 0.5 * args.rho * args.rotor_area * (np.power(X_test[:, 0], 3) + 1e-6)
+        cp_phys = np.clip(y_pred_phys / denom_phys, 0.0, 1.0)
+        from prmae.evaluation.metrics import physics_validity_score
+        m_phys['PhysVal'] = physics_validity_score(cp_phys)
         results_rows.append({'fold': fi+1, 'model': 'Physics', **m_phys})
         agg_metrics.setdefault('Physics', []).append(m_phys)
         # Physics plots
@@ -338,6 +347,9 @@ def main():
             'depth': args.cb_depth, 'learning_rate': args.cb_lr, 'l2_leaf_reg': args.cb_l2, 'iterations': args.cb_iter,
         })
         m_ai = compute_metrics(y_test, y_pred_ai)
+        denom_ai = 0.5 * args.rho * args.rotor_area * (np.power(X_test[:, 0], 3) + 1e-6)
+        cp_ai = np.clip(y_pred_ai / denom_ai, 0.0, 1.0)
+        m_ai['PhysVal'] = physics_validity_score(cp_ai)
         results_rows.append({'fold': fi+1, 'model': 'AI_CatBoost', **m_ai, **t_ai})
         agg_metrics.setdefault('AI_CatBoost', []).append(m_ai)
         save_basic_plots(y_test, y_pred_ai, X_test[:, 0], os.path.join(fold_dir, 'AI_CatBoost'))
@@ -351,6 +363,9 @@ def main():
             depth=args.cb_depth, learning_rate=args.cb_lr, l2_leaf_reg=args.cb_l2, iterations=args.cb_iter
         ))
         m_hyb = compute_metrics(y_test, y_pred_hyb)
+        denom_hyb = 0.5 * args.rho * args.rotor_area * (np.power(X_test[:, 0], 3) + 1e-6)
+        cp_hyb = np.clip(y_pred_hyb / denom_hyb, 0.0, 1.0)
+        m_hyb['PhysVal'] = physics_validity_score(cp_hyb)
         results_rows.append({'fold': fi+1, 'model': 'Hybrid_CatBoost+Pth', **m_hyb, **t_hyb})
         agg_metrics.setdefault('Hybrid_CatBoost+Pth', []).append(m_hyb)
         save_basic_plots(y_test, y_pred_hyb, X_test[:, 0], os.path.join(fold_dir, 'Hybrid_CatBoost+Pth'))
@@ -363,6 +378,9 @@ def main():
             for name, model in baselines.items():
                 y_pred_b, t_b = fit_predict_sklearn(model, X_tr, y_tr, X_test)
                 m_b = compute_metrics(y_test, y_pred_b)
+                denom_b = 0.5 * args.rho * args.rotor_area * (np.power(X_test[:, 0], 3) + 1e-6)
+                cp_b = np.clip(y_pred_b / denom_b, 0.0, 1.0)
+                m_b['PhysVal'] = physics_validity_score(cp_b)
                 results_rows.append({'fold': fi+1, 'model': name, **m_b, **t_b})
                 agg_metrics.setdefault(name, []).append(m_b)
                 try:
@@ -389,12 +407,22 @@ def main():
             'MSE': float(np.mean([m['MSE'] for m in metrics_list])),
             'RMSE': float(np.mean([m['RMSE'] for m in metrics_list])),
             'R2': float(np.mean([m['R2'] for m in metrics_list])),
+            'PhysVal': float(np.mean([m.get('PhysVal', np.nan) for m in metrics_list])),
         }
 
     # Save CSV and JSON
     pd.DataFrame(results_rows).to_csv(os.path.join(outdir, 'fold_metrics.csv'), index=False)
     with open(os.path.join(outdir, 'aggregate_metrics.json'), 'w') as f:
         json.dump(agg_summary, f, indent=2)
+
+    # Excel export
+    try:
+        agg_df = pd.DataFrame.from_dict(agg_summary, orient='index').reset_index().rename(columns={'index': 'Model'})
+        with pd.ExcelWriter(os.path.join(outdir, 'comparison.xlsx'), engine='xlsxwriter') as writer:
+            pd.DataFrame(results_rows).to_excel(writer, sheet_name='fold_metrics', index=False)
+            agg_df.to_excel(writer, sheet_name='aggregate', index=False)
+    except Exception:
+        pass
 
     # Plot bar chart for Physics vs AI vs Hybrid (and baselines if included)
     order = ['Physics', 'AI_CatBoost', 'Hybrid_CatBoost+Pth']
