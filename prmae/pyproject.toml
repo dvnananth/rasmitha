@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prmae"
+version = "0.1.0"
+description = "Physics-Residual Multi-scale Adaptive Ensemble for wind turbine power prediction"
+authors = [{name = "Your Name"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
