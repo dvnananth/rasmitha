@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Work Orders{% endblock %}
+
+{% block content %}
+<h1>Work Orders</h1>
+
+<form class="filters" method="get" action="{{ url_for('list_workorders') }}">
+    <input type="text" name="q" placeholder="Search..." value="{{ search }}">
+    <select name="status">
+        <option value="">All Statuses</option>
+        {% for s in STATUSES %}
+            <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+    </select>
+    <select name="priority">
+        <option value="">All Priorities</option>
+        {% for p in PRIORITIES %}
+            <option value="{{ p }}" {% if priority_filter == p %}selected{% endif %}>{{ p }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">Apply</button>
+    <a class="link" href="{{ url_for('list_workorders') }}">Reset</a>
+</form>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Due</th>
+            <th>Assigned</th>
+            <th>Created</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for wo in workorders %}
+            <tr>
+                <td>#{{ wo.id }}</td>
+                <td><a href="{{ url_for('show_workorder', workorder_id=wo.id) }}">{{ wo.title }}</a></td>
+                <td><span class="badge status-{{ wo.status|lower|replace(' ', '-') }}">{{ wo.status }}</span></td>
+                <td><span class="badge priority-{{ wo.priority|lower }}">{{ wo.priority }}</span></td>
+                <td>{{ wo.due_date|datefmt }}</td>
+                <td>{{ wo.assigned_to or '-' }}</td>
+                <td>{{ wo.created_at.strftime('%Y-%m-%d') }}</td>
+                <td class="actions">
+                    <a class="btn" href="{{ url_for('edit_workorder', workorder_id=wo.id) }}">Edit</a>
+                    <form method="post" action="{{ url_for('delete_workorder', workorder_id=wo.id) }}" onsubmit="return confirm('Delete this work order?');">
+                        <button class="btn danger" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="8" class="empty">No work orders found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
